@@ -2,7 +2,7 @@
   "name": "live-shipments",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://bagginsdeveloper.github.io/Live-shipments",
+  "homepage": ".",
   "dependencies": {
     "@emailjs/browser": "^4.4.1",
     "@headlessui/react": "^2.2.5",
@@ -30,13 +30,14 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build && npm run move-build-to-root",
+    "move-build-to-root": "cp -r build/* . && rm -rf build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "deploy": "powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "deploy:azure": "npm run build && powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "predeploy": "npm run build",
-    "deploy:gh-pages": "gh-pages -d build",
+    "deploy:gh-pages": "gh-pages -d .",
     "deploy:manual": "powershell -ExecutionPolicy Bypass -File deploy-gh-pages.ps1"
   },
   "eslintConfig": {
@@ -58,6 +59,7 @@
     ]
   },
   "devDependencies": {
+    "@craco/craco": "^7.1.0",
     "gh-pages": "^6.3.0"
   }
 }

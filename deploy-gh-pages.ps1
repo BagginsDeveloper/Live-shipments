@@ -22,14 +22,14 @@ if ($ghPagesExists) {
 Write-Host "Creating new gh-pages branch..." -ForegroundColor Yellow
 git checkout --orphan gh-pages
 
-# Remove all files except build
+# Remove all files
 Write-Host "Cleaning gh-pages branch..." -ForegroundColor Yellow
 git rm -rf .
 git clean -fxd
 
-# Copy build files to root
-Write-Host "Copying build files..." -ForegroundColor Yellow
-Copy-Item -Path "build\*" -Destination "." -Recurse -Force
+# Copy all files from root (excluding git and node_modules)
+Write-Host "Copying files..." -ForegroundColor Yellow
+Copy-Item -Path "*" -Destination "." -Recurse -Force -Exclude ".git", "node_modules", "src"
 
 # Add all files
 Write-Host "Adding files to git..." -ForegroundColor Yellow

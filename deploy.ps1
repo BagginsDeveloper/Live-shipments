@@ -31,9 +31,9 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Check if build directory exists
-if (-not (Test-Path "build")) {
-    Write-Host "❌ Build directory not found" -ForegroundColor Red
+# Check if static directory exists (indicating successful build)
+if (-not (Test-Path "static")) {
+    Write-Host "❌ Static directory not found - build may have failed" -ForegroundColor Red
     exit 1
 }
 
@@ -56,10 +56,15 @@ try {
     
     # Deploy using MSDeploy
     $msdeployArgs = @(
-        "-source:contentPath=`"$PWD\build`""
+        "-source:contentPath=`"$PWD`""
         "-dest:contentPath=`"$msdeploySite`",ComputerName=`"https://$publishUrl`",UserName=`"$userName`",Password=`"$userPWD`",AuthType=`"Basic`""
         "-verb:sync"
         "-enableRule:DoNotDeleteRule"
+        "-skip:objectName=dirPath,absolutePath=src"
+        "-skip:objectName=dirPath,absolutePath=node_modules"
+        "-skip:objectName=dirPath,absolutePath=.git"
+        "-skip:objectName=dirPath,absolutePath=.vs"
+        "-skip:objectName=dirPath,absolutePath=.github"
     )
     
     Write-Host "Deploying to: https://$publishUrl" -ForegroundColor Cyan
