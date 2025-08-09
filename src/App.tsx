@@ -5,7 +5,6 @@ import CreateShipmentModal from './components/CreateShipmentModal';
 import ShipmentMapModal from './components/ShipmentMapModal';
 import ShipmentsTable from './components/ShipmentsTable';
 import SidebarMenu from './components/SidebarMenu';
-import FeedbackModal from './components/FeedbackModal';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Shipment, FilterOptions, FilterPreset, TableColumn, ShipmentStatus, AppointmentStatus, Priority } from './types';
@@ -18,7 +17,6 @@ function Dashboard() {
   const [selectedShipments, setSelectedShipments] = useState<string[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [columns, setColumns] = useState<TableColumn[]>(defaultColumns);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
@@ -225,15 +223,6 @@ function Dashboard() {
                   Create New Shipment
                 </button>
                 <button
-                  onClick={() => setIsFeedbackModalOpen(true)}
-                  className="bg-amber-600 text-white px-4 py-2 rounded-lg hover:bg-amber-700 transition-colors text-sm font-medium shadow-sm flex items-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                  </svg>
-                  Submit Feedback
-                </button>
-                <button
                   onClick={logout}
                   className="bg-slate-600 text-white px-4 py-2 rounded-lg hover:bg-slate-700 transition-colors text-sm font-medium shadow-sm flex items-center gap-2"
                 >
@@ -333,12 +322,6 @@ function Dashboard() {
         isOpen={isMapModalOpen}
         onClose={() => setIsMapModalOpen(false)}
         shipments={filteredShipments}
-      />
-
-      {/* Feedback Modal */}
-      <FeedbackModal
-        isOpen={isFeedbackModalOpen}
-        onClose={() => setIsFeedbackModalOpen(false)}
       />
     </div>
   );
