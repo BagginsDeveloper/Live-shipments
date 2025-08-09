@@ -36,7 +36,8 @@
     "deploy": "powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "deploy:azure": "npm run build && powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "predeploy": "npm run build",
-    "deploy:gh-pages": "gh-pages -d build"
+    "deploy:gh-pages": "gh-pages -d build",
+    "deploy:manual": "powershell -ExecutionPolicy Bypass -File deploy-gh-pages.ps1"
   },
   "eslintConfig": {
     "extends": [
