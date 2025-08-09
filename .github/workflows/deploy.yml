@@ -31,10 +31,7 @@ jobs:
         run: npm ci
       
       - name: Build
-        run: |
-          npm run build
-          echo "Build completed successfully"
-          ls -la build/
+        run: npm run build
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
