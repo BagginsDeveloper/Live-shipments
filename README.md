@@ -1,6 +1,8 @@
-# Live Shipments - React TypeScript Application
+# Live Shipment View
 
-A modern, responsive web application for managing live shipment tracking and logistics operations. Built with React, TypeScript, and TailwindCSS.
+A React application for tracking and managing live shipments with real-time updates and interactive maps.
+
+<!-- Deployment test comment -->
 
 ## Features
 
