@@ -11,6 +11,8 @@ export interface Shipment {
   carrier: string;
   poRef: string;
   cost: number;
+  maxBuy: number;
+  targetRate: number;
   billed: number;
   margin: number;
   weight: number;

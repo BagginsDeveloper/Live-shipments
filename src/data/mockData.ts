@@ -115,6 +115,8 @@ const generateRandomShipments = (count: number): Shipment[] => {
     deliveryDate.setDate(pickupDate.getDate() + Math.floor(Math.random() * 7) + 1);
     
     const cost = Math.floor(Math.random() * 5000) + 500;
+    const maxBuy = Math.floor(Math.random() * 4000) + 400;
+    const targetRate = Math.floor(Math.random() * 6000) + 600;
     const margin = Math.floor(Math.random() * 1000) + 100;
     const billed = cost + margin;
     const weight = Math.floor(Math.random() * 15000) + 1000;
@@ -152,7 +154,9 @@ const generateRandomShipments = (count: number): Shipment[] => {
       carrierSalesRep: salesReps[Math.floor(Math.random() * salesReps.length)],
       assignedTo: assignedTeams[Math.floor(Math.random() * assignedTeams.length)],
       pieceCount: pieceCounts[Math.floor(Math.random() * pieceCounts.length)],
-      status: statuses[Math.floor(Math.random() * statuses.length)]
+      status: statuses[Math.floor(Math.random() * statuses.length)],
+      maxBuy,
+      targetRate
     });
   }
 
@@ -173,6 +177,8 @@ export const mockShipments: Shipment[] = [
     carrier: 'FastFreight Inc',
     poRef: 'PO-2024-001',
     cost: 2500,
+    maxBuy: 2000,
+    targetRate: 3200,
     billed: 3000,
     margin: 500,
     weight: 5000,
@@ -201,6 +207,8 @@ export const mockShipments: Shipment[] = [
     carrier: 'WestCoast Transport',
     poRef: 'PO-2024-002',
     cost: 1800,
+    maxBuy: 1500,
+    targetRate: 2400,
     billed: 2200,
     margin: 400,
     weight: 3000,
@@ -229,6 +237,8 @@ export const mockShipments: Shipment[] = [
     carrier: 'Southeast Express',
     poRef: 'PO-2024-003',
     cost: 3200,
+    maxBuy: 2800,
+    targetRate: 4000,
     billed: 3800,
     margin: 600,
     weight: 7500,
@@ -257,6 +267,8 @@ export const mockShipments: Shipment[] = [
     carrier: 'Texas Transport',
     poRef: 'PO-2024-004',
     cost: 1200,
+    maxBuy: 1000,
+    targetRate: 1800,
     billed: 1500,
     margin: 300,
     weight: 2000,
@@ -285,6 +297,8 @@ export const mockShipments: Shipment[] = [
     carrier: 'Pacific Shipping',
     poRef: 'PO-2024-005',
     cost: 4500,
+    maxBuy: 4000,
+    targetRate: 5800,
     billed: 5200,
     margin: 700,
     weight: 10000,
@@ -313,6 +327,8 @@ export const mockShipments: Shipment[] = [
     carrier: 'Steel City Transport',
     poRef: 'PO-2024-006',
     cost: 2800,
+    maxBuy: 2400,
+    targetRate: 3600,
     billed: 3400,
     margin: 600,
     weight: 8000,
@@ -341,6 +357,8 @@ export const mockShipments: Shipment[] = [
     carrier: 'Tennessee Express',
     poRef: 'PO-2024-007',
     cost: 1600,
+    maxBuy: 1300,
+    targetRate: 2200,
     billed: 2000,
     margin: 400,
     weight: 4000,
@@ -435,6 +453,8 @@ export const defaultColumns: TableColumn[] = [
   { id: 'carrier', label: 'Carrier', key: 'carrier', visible: true, sortable: true, filterable: true, width: '120px' },
   { id: 'poRef', label: 'PO Ref #', key: 'poRef', visible: true, sortable: true, filterable: true, width: '80px' },
   { id: 'cost', label: 'Cost', key: 'cost', visible: true, sortable: true, filterable: true, width: '70px' },
+  { id: 'maxBuy', label: 'Max Buy', key: 'maxBuy', visible: true, sortable: true, filterable: true, width: '80px' },
+  { id: 'targetRate', label: 'Target Rate', key: 'targetRate', visible: true, sortable: true, filterable: true, width: '90px' },
   { id: 'billed', label: 'Billed', key: 'billed', visible: true, sortable: true, filterable: true, width: '70px' },
   { id: 'margin', label: 'Margin', key: 'margin', visible: true, sortable: true, filterable: true, width: '70px' },
   { id: 'weight', label: 'Weight', key: 'weight', visible: true, sortable: true, filterable: true, width: '70px' },

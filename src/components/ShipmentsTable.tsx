@@ -193,6 +193,12 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
       case 'cost':
         return <span>${shipment.cost.toLocaleString()}</span>;
       
+      case 'maxBuy':
+        return <span>${shipment.maxBuy.toLocaleString()}</span>;
+      
+      case 'targetRate':
+        return <span>${shipment.targetRate.toLocaleString()}</span>;
+      
       case 'billed':
         return <span>${shipment.billed.toLocaleString()}</span>;
       
