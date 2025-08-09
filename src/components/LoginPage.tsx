@@ -46,20 +46,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
       {/* Login Form */}
       <div className="relative z-10 w-full max-w-md">
         <div className="bg-white rounded-2xl shadow-2xl p-8 mx-4">
-                      {/* Logo/Header */}
+                      {/* Header */}
             <div className="text-center mb-8">
-                             {/* 3PL Systems Logo */}
-                              <div className="flex items-center justify-center mb-6">
-                  <a 
-                    href="https://3plsystems.com/" 
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="hover:opacity-80 transition-opacity"
-                  >
-                    <img src="/3pl-logo.png" alt="3PL Systems Logo" className="h-32" />
-                  </a>
-                </div>
-            
             <h1 className="text-2xl font-bold text-slate-900">Development Environment</h1>
             <h4 className="text-slate-600 mt-2">This is by invite only.</h4> 
             <h4 className="text-slate-600 mt-2">Please contact 3PL Systems to get access.</h4>
