@@ -440,9 +440,9 @@ export const priorityColors: Record<Priority, string> = {
 };
 
 export const defaultColumns: TableColumn[] = [
-  { id: 'select', label: '', key: 'id', visible: true, sortable: false, filterable: false, width: '40px' },
+  { id: 'select', label: '', key: 'id', visible: true, sortable: false, filterable: false, width: '40px', sticky: true, locked: true },
   { id: 'statusActions', label: 'Status & Actions', key: 'status', visible: true, sortable: true, filterable: true, width: '140px', sticky: true, locked: true },
-  { id: 'loadNumber', label: 'Load #', key: 'loadNumber', visible: true, sortable: true, filterable: true, width: '80px' },
+  { id: 'loadNumber', label: 'Load #', key: 'loadNumber', visible: true, sortable: true, filterable: true, width: '80px', sticky: true },
   { id: 'customer', label: 'Customer', key: 'customer', visible: true, sortable: true, filterable: true, width: '120px' },
   { id: 'shipperAddress', label: 'Shipper Address', key: 'shipperAddress', visible: true, sortable: true, filterable: true, width: '150px' },
   { id: 'consigneeAddress', label: 'Consignee Address', key: 'consigneeAddress', visible: true, sortable: true, filterable: true, width: '150px' },
