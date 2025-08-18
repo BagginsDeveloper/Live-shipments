@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { Shipment, ShipmentStatus, TableColumn, AppointmentStatus, Priority } from '../types';
 import { statusColors, appointmentStatusColors, priorityColors } from '../data/mockData';
 import ColumnManagementModal from './ColumnManagementModal';
+import * as XLSX from 'xlsx';
 
 interface ShipmentsTableProps {
   shipments: Shipment[];
@@ -193,6 +194,12 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
       case 'cost':
         return <span>${shipment.cost.toLocaleString()}</span>;
       
+      case 'maxBuy':
+        return <span>${shipment.maxBuy.toLocaleString()}</span>;
+      
+      case 'targetRate':
+        return <span>${shipment.targetRate.toLocaleString()}</span>;
+      
       case 'billed':
         return <span>${shipment.billed.toLocaleString()}</span>;
       
@@ -269,20 +276,87 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
   // Calculate left position for sticky columns
   const getStickyLeft = (columnIndex: number): string => {
     let leftPosition = 0;
-    let stickyColumnCount = 0;
     
-    // Find all sticky columns that come before this one and sum their widths
+    // Find all sticky or locked columns that come before this one and sum their widths
     for (let i = 0; i < columnIndex; i++) {
       const column = visibleColumns[i];
-      if (column.sticky) {
+      if (column.sticky || column.locked) {
         // Parse width to get numeric value (remove 'px' and convert to number)
         const width = parseInt(column.width?.replace('px', '') || '0');
         leftPosition += width;
-        stickyColumnCount++;
       }
     }
     
     return `${leftPosition}px`;
+  };
+
+  const exportToExcel = () => {
+    // Prepare the data for export
+    const exportData = sortedAndFilteredShipments.map(shipment => {
+      const row: any = {};
+      
+      visibleColumns.forEach(column => {
+        const value = shipment[column.key];
+        
+        // Format the value based on the column type
+        switch (column.key) {
+          case 'status':
+            row[column.label] = value;
+            break;
+          case 'appointmentStatus':
+            row[column.label] = value;
+            break;
+          case 'priority':
+            row[column.label] = value;
+            break;
+          case 'cost':
+          case 'maxBuy':
+          case 'targetRate':
+          case 'billed':
+          case 'margin':
+            row[column.label] = `$${value.toLocaleString()}`;
+            break;
+          case 'weight':
+            row[column.label] = `${value.toLocaleString()} lbs`;
+            break;
+          case 'miles':
+            row[column.label] = `${value.toLocaleString()}`;
+            break;
+          case 'pickupDate':
+          case 'estimatedDelivery':
+          case 'lastEdited':
+            row[column.label] = value;
+            break;
+          default:
+            row[column.label] = value;
+        }
+      });
+      
+      return row;
+    });
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Auto-size columns
+    const colWidths = visibleColumns.map(col => ({
+      wch: Math.max(
+        col.label.length,
+        ...exportData.map(row => String(row[col.label] || '').length)
+      )
+    }));
+    ws['!cols'] = colWidths;
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Shipments');
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0];
+    const filename = `shipments_export_${date}.xlsx`;
+
+    // Save the file
+    XLSX.writeFile(wb, filename);
   };
 
   return (
@@ -343,17 +417,28 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
           <span className="text-xs text-slate-600">
             {visibleColumns.length} columns visible
           </span>
-          <button
-            onClick={() => setIsColumnModalOpen(true)}
-            className="px-3 py-1 text-xs bg-slate-600 text-white rounded-md hover:bg-slate-700 font-medium shadow-sm"
-          >
-            Manage Columns
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={exportToExcel}
+              className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm flex items-center gap-1"
+            >
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Export to Excel
+            </button>
+            <button
+              onClick={() => setIsColumnModalOpen(true)}
+              className="px-3 py-1 text-xs bg-slate-600 text-white rounded-md hover:bg-slate-700 font-medium shadow-sm"
+            >
+              Manage Columns
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-auto relative">
-        <table className="min-w-full divide-y divide-slate-200">
+        <table className="min-w-full divide-y divide-slate-200" style={{ tableLayout: 'fixed' }}>
           <thead className="bg-slate-50 sticky top-0 z-10">
             <tr>
               {visibleColumns.map((column, index) => (
@@ -361,11 +446,11 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
                   key={column.id}
                   className={`px-3 py-2 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider ${
                     column.sortable ? 'cursor-pointer hover:bg-slate-100' : ''
-                  } ${column.sticky ? 'sticky bg-slate-50 z-30 border-r border-slate-200' : ''}`}
+                  } ${(column.sticky || column.locked) ? 'sticky bg-slate-50 z-30 border-r border-slate-200 shadow-sm' : ''}`}
                   onClick={() => column.sortable && handleSort(column.key)}
                   style={{ 
                     width: column.width,
-                    ...(column.sticky && { left: getStickyLeft(index) })
+                    ...((column.sticky || column.locked) && { left: getStickyLeft(index) })
                   }}
                 >
                   {column.label}
@@ -377,10 +462,13 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
               {visibleColumns.map((column, index) => (
                 <th
                   key={`filter-${column.id}`}
-                  className={`px-3 py-2 ${column.sticky ? 'sticky bg-slate-50 z-30 border-r border-slate-200' : ''}`}
+                  className={`px-3 py-2 ${(column.sticky || column.locked) ? 'sticky bg-slate-50 z-30 border-r border-slate-200 shadow-sm' : ''}`}
                   style={{ 
                     width: column.width,
-                    ...(column.sticky && { left: getStickyLeft(index) })
+                    ...((column.sticky || column.locked) && { 
+                      left: getStickyLeft(index),
+                      top: '32px' // Height of the first header row
+                    })
                   }}
                 >
                   {column.filterable && (
@@ -402,10 +490,10 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
                 {visibleColumns.map((column, index) => (
                   <td
                     key={column.id}
-                    className={`px-3 py-2 text-xs whitespace-nowrap ${column.sticky ? 'sticky bg-white z-20 border-r border-slate-200' : ''}`}
+                    className={`px-3 py-2 text-xs whitespace-nowrap ${(column.sticky || column.locked) ? 'sticky bg-white z-20 border-r border-slate-200 shadow-sm' : ''}`}
                     style={{ 
                       width: column.width,
-                      ...(column.sticky && { left: getStickyLeft(index) })
+                      ...((column.sticky || column.locked) && { left: getStickyLeft(index) })
                     }}
                   >
                     {renderCell(shipment, column)}

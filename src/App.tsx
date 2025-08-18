@@ -17,8 +17,7 @@ function Dashboard() {
   const [selectedShipments, setSelectedShipments] = useState<string[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [columns, setColumns] = useState<TableColumn[]>(defaultColumns);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [columns, setColumns] = useState<TableColumn[]>(defaultColumns);  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
   const filteredShipments = useMemo(() => {
     return mockShipments.filter(shipment => {
