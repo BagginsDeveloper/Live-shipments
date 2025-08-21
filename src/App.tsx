@@ -1,13 +1,17 @@
 import React, { useState, useMemo } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import FilterBar from './components/FilterBar';
-import Legend from './components/Legend';
+import LegendModal from './components/LegendModal';
 import CreateShipmentModal from './components/CreateShipmentModal';
 import ShipmentMapModal from './components/ShipmentMapModal';
 import ShipmentsTable from './components/ShipmentsTable';
+import ColumnManagementModal from './components/ColumnManagementModal';
+import UploadShipmentsModal from './components/UploadShipmentsModal';
 import SidebarMenu from './components/SidebarMenu';
 import ProtectedRoute from './components/ProtectedRoute';
+import PublicTrackingPage from './components/PublicTrackingPage';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Shipment, FilterOptions, FilterPreset, TableColumn, ShipmentStatus, AppointmentStatus, Priority } from './types';
+import { FilterOptions, FilterPreset, TableColumn, ShipmentStatus, AppointmentStatus, Priority, Shipment } from './types';
 import { mockShipments, defaultColumns } from './data/mockData';
 
 function Dashboard() {
@@ -17,7 +21,11 @@ function Dashboard() {
   const [selectedShipments, setSelectedShipments] = useState<string[]>([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isMapModalOpen, setIsMapModalOpen] = useState(false);
-  const [columns, setColumns] = useState<TableColumn[]>(defaultColumns);  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
+  const [isLegendModalOpen, setIsLegendModalOpen] = useState(false);
+  const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [columns, setColumns] = useState<TableColumn[]>(defaultColumns);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
 
   const filteredShipments = useMemo(() => {
     return mockShipments.filter(shipment => {
@@ -132,6 +140,11 @@ function Dashboard() {
         return false;
       }
 
+      // Equipment filter (multi-select)
+      if (filters.equipment && filters.equipment.length > 0 && !filters.equipment.includes(shipment.equipment)) {
+        return false;
+      }
+
       // Estimated Delivery Date Range filter
       if (filters.estimatedDeliveryFrom && filters.estimatedDeliveryTo) {
         const deliveryDate = new Date(shipment.estimatedDelivery);
@@ -151,6 +164,93 @@ function Dashboard() {
   const handleBulkAction = (action: string, shipmentIds: string[]) => {
     console.log(`Bulk action "${action}" performed on shipments:`, shipmentIds);
     // In a real app, you would handle the bulk action here
+  };
+
+  const handleExportToExcel = () => {
+    // Import XLSX dynamically to avoid SSR issues
+    import('xlsx').then((XLSX) => {
+      // Prepare the data for export
+      const exportData = filteredShipments.map(shipment => {
+        const row: any = {};
+        
+        columns.filter(col => col.visible).forEach(column => {
+          const value = shipment[column.key as keyof Shipment];
+          
+          // Format the value based on the column type
+          switch (column.key) {
+            case 'status':
+            case 'appointmentStatus':
+            case 'priority':
+              row[column.label] = value;
+              break;
+            case 'cost':
+            case 'maxBuy':
+            case 'targetRate':
+            case 'billed':
+            case 'margin':
+              row[column.label] = `$${Number(value).toLocaleString()}`;
+              break;
+            case 'weight':
+              row[column.label] = `${Number(value).toLocaleString()} lbs`;
+              break;
+            case 'miles':
+              row[column.label] = `${Number(value).toLocaleString()}`;
+              break;
+            case 'pickupDate':
+            case 'estimatedDelivery':
+            case 'lastEdited':
+              row[column.label] = value;
+              break;
+            default:
+              row[column.label] = value;
+          }
+        });
+        
+        return row;
+      });
+
+      // Create workbook and worksheet
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(exportData);
+
+      // Auto-size columns
+      const visibleColumns = columns.filter(col => col.visible);
+      const colWidths = visibleColumns.map(col => ({
+        wch: Math.max(
+          col.label.length,
+          ...exportData.map(row => String(row[col.label] || '').length)
+        )
+      }));
+      ws['!cols'] = colWidths;
+
+      // Add worksheet to workbook
+      XLSX.utils.book_append_sheet(wb, ws, 'Shipments');
+
+      // Generate filename with current date
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `shipments_export_${date}.xlsx`;
+
+      // Save the file
+      XLSX.writeFile(wb, filename);
+    }).catch(error => {
+      console.error('Error loading XLSX library:', error);
+      alert('Error exporting to Excel. Please try again.');
+    });
+  };
+
+  const handleManageColumns = () => {
+    setIsColumnModalOpen(true);
+  };
+
+  const handleUploadShipments = () => {
+    setIsUploadModalOpen(true);
+  };
+
+  const handleUploadComplete = (shipments: Partial<Shipment>[]) => {
+    console.log('Uploaded shipments:', shipments);
+    // In a real app, you would add these shipments to your data source
+    // For now, we'll just log them
+    alert(`Successfully processed ${shipments.length} shipments from upload`);
   };
 
   const handleBook = (customer: string) => {
@@ -243,12 +343,13 @@ function Dashboard() {
               onFiltersChange={setFilters}
               onSavePreset={handleSavePreset}
               presets={presets}
+              onShowLegend={() => setIsLegendModalOpen(true)}
             />
           </div>
         </div>
 
-        {/* Legend - Compact */}
-        <div className="flex-shrink-0 bg-slate-50 border-b border-slate-200">
+        {/* Legend - Hidden (now shown in modal) */}
+        {/* <div className="flex-shrink-0 bg-slate-50 border-b border-slate-200">
           <div className="px-4 sm:px-6 lg:px-8 py-2">
             <Legend 
               onStatusFilter={handleStatusFilter}
@@ -256,34 +357,67 @@ function Dashboard() {
               onPriorityFilter={handlePriorityFilter}
             />
           </div>
-        </div>
+        </div> */}
 
-        {/* Results Summary - Compact */}
-        <div className="flex-shrink-0 bg-white border-b border-slate-200">
-          <div className="px-4 sm:px-6 lg:px-8 py-2">
-            <div className="flex justify-between items-center">
-              <div className="text-sm text-slate-600">
-                Showing {filteredShipments.length} of {mockShipments.length} shipments
-              </div>
-              <div className="text-sm text-slate-600">
-                {selectedShipments.length > 0 && `${selectedShipments.length} selected`}
-              </div>
-            </div>
-          </div>
-        </div>
+
 
         {/* Main Content - Takes remaining space */}
         <main className="flex-1 overflow-hidden bg-slate-50">
           <div className="h-full px-4 sm:px-6 lg:px-8 py-4">
-            <div className="h-full">
-              <ShipmentsTable
-                shipments={filteredShipments}
-                selectedShipments={selectedShipments}
-                onSelectionChange={setSelectedShipments}
-                onBulkAction={handleBulkAction}
-                columns={columns}
-                onColumnsChange={setColumns}
-              />
+            <div className="h-full flex flex-col">
+              <div className="flex-1 min-h-0">
+                <ShipmentsTable
+                  shipments={filteredShipments}
+                  selectedShipments={selectedShipments}
+                  onSelectionChange={setSelectedShipments}
+                  onBulkAction={handleBulkAction}
+                  columns={columns}
+                  onColumnsChange={setColumns}
+                />
+              </div>
+              
+              {/* Shipment Count and Controls - Compact */}
+              <div className="flex-shrink-0 mt-3 pt-2 border-t border-slate-200">
+                <div className="flex justify-between items-center">
+                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                    <span>Showing {filteredShipments.length} of {mockShipments.length} shipments</span>
+                    <span>{columns.filter(col => col.visible).length} columns visible</span>
+                  </div>
+                  
+                  <div className="flex items-center gap-3">
+                    {selectedShipments.length > 0 && (
+                      <span className="text-xs text-slate-500">{selectedShipments.length} selected</span>
+                    )}
+                    
+                    <button
+                      onClick={handleExportToExcel}
+                      className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Export to Excel
+                    </button>
+                    
+                    <button
+                      onClick={handleUploadShipments}
+                      className="px-3 py-1 text-xs bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium shadow-sm flex items-center gap-1"
+                    >
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                      </svg>
+                      Upload Shipments
+                    </button>
+                    
+                    <button
+                      onClick={handleManageColumns}
+                      className="px-3 py-1 text-xs bg-slate-600 text-white rounded-md hover:bg-slate-700 font-medium shadow-sm"
+                    >
+                      Manage Columns
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </main>
@@ -322,6 +456,31 @@ function Dashboard() {
         onClose={() => setIsMapModalOpen(false)}
         shipments={filteredShipments}
       />
+
+      {/* Legend Modal */}
+      <LegendModal
+        isOpen={isLegendModalOpen}
+        onClose={() => setIsLegendModalOpen(false)}
+        onStatusFilter={handleStatusFilter}
+        onAppointmentStatusFilter={handleAppointmentStatusFilter}
+        onPriorityFilter={handlePriorityFilter}
+      />
+
+      {/* Column Management Modal */}
+      <ColumnManagementModal
+        isOpen={isColumnModalOpen}
+        onClose={() => setIsColumnModalOpen(false)}
+        columns={columns}
+        onColumnsChange={setColumns}
+      />
+
+      {/* Upload Shipments Modal */}
+      <UploadShipmentsModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        columns={columns}
+        onUpload={handleUploadComplete}
+      />
     </div>
   );
 }
@@ -329,9 +488,22 @@ function Dashboard() {
 function App() {
   return (
     <AuthProvider>
-      <ProtectedRoute>
-        <Dashboard />
-      </ProtectedRoute>
+      <Router>
+        <Routes>
+          {/* Public tracking route - no authentication required */}
+          <Route path="/tracking/:shipmentId" element={<PublicTrackingPage />} />
+          
+          {/* Protected dashboard route */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Dashboard />
+            </ProtectedRoute>
+          } />
+          
+          {/* Default route redirects to dashboard */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Router>
     </AuthProvider>
   );
 }

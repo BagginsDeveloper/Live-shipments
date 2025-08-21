@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FilterOptions, FilterPreset, ShipmentMode, ShipmentStatus } from '../types';
+import { FilterOptions, FilterPreset, ShipmentStatus } from '../types';
 import { mockSalesReps, mockGroups } from '../data/mockData';
 import MultiSelectDropdown from './MultiSelectDropdown';
 
@@ -8,13 +8,15 @@ interface FilterBarProps {
   onFiltersChange: (filters: FilterOptions) => void;
   onSavePreset: (preset: FilterPreset) => void;
   presets: FilterPreset[];
+  onShowLegend?: () => void;
 }
 
 const FilterBar: React.FC<FilterBarProps> = ({
   filters,
   onFiltersChange,
   onSavePreset,
-  presets
+  presets,
+  onShowLegend
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [presetName, setPresetName] = useState('');
@@ -56,22 +58,39 @@ const FilterBar: React.FC<FilterBarProps> = ({
   ];
 
   const statusOptions = [
+    { value: 'Not Specified', label: 'Not Specified' },
     { value: 'Quoted', label: 'Quoted' },
-    { value: 'Booked Not Covered', label: 'Booked Not Covered' },
+    { value: 'Tendered', label: 'Tendered' },
     { value: 'Booked', label: 'Booked' },
-    { value: 'Dispatch', label: 'Dispatch' },
-    { value: 'In Transit', label: 'In Transit' },
-    { value: 'Delivered', label: 'Delivered' },
+    { value: 'Dispatched', label: 'Dispatched' },
     { value: 'Loading', label: 'Loading' },
+    { value: 'In Transit', label: 'In Transit' },
+    { value: 'Out For Delivery', label: 'Out For Delivery' },
+    { value: 'Refused Delivery', label: 'Refused Delivery' },
+    { value: 'In Disposition', label: 'In Disposition' },
+    { value: 'Dispositioned', label: 'Dispositioned' },
+    { value: 'Missed Delivery', label: 'Missed Delivery' },
+    { value: 'Loading/Unloading', label: 'Loading/Unloading' },
     { value: 'Unloading', label: 'Unloading' },
-    { value: 'Unloading / Loading', label: 'Unloading / Loading' },
-    { value: 'Delivered OS&D', label: 'Delivered OS&D' }
+    { value: 'Delivered', label: 'Delivered' },
+    { value: 'Delivered OS&D', label: 'Delivered OS&D' },
+    { value: 'Completed', label: 'Completed' },
+    { value: 'Hold', label: 'Hold' },
+    { value: 'Transferred', label: 'Transferred' },
+    { value: 'Cancelled With Charges', label: 'Cancelled With Charges' },
+    { value: 'Canceled', label: 'Canceled' }
   ];
 
   const groupOptions = mockGroups.map(group => ({
     value: group.name,
     label: group.name
   }));
+
+  const equipmentOptions = [
+    { value: 'Van', label: 'Van' },
+    { value: 'Reefer', label: 'Reefer' },
+    { value: 'Flatbed', label: 'Flatbed' }
+  ];
 
   const regionOptions = [
     { value: 'Northeast', label: 'Northeast' },
@@ -132,11 +151,18 @@ const FilterBar: React.FC<FilterBarProps> = ({
         >
           {showAdvanced ? 'Hide Advanced' : 'Show Advanced'}
         </button>
+
+        <button
+          onClick={() => onShowLegend?.()}
+          className="text-indigo-600 hover:text-indigo-700 text-xs font-medium"
+        >
+          Show Legend
+        </button>
       </div>
 
       {/* Basic Filters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-3">
-        <div>
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-12 gap-3 mb-3">
+        <div className="lg:col-span-2">
           <label className="block text-xs font-medium text-slate-700 mb-1">Load #</label>
           <input
             type="text"
@@ -147,7 +173,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           />
         </div>
 
-        <div>
+        <div className="lg:col-span-2">
           <label className="block text-xs font-medium text-slate-700 mb-1">Carrier</label>
           <input
             type="text"
@@ -158,7 +184,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           />
         </div>
 
-        <div>
+        <div className="lg:col-span-1">
           <MultiSelectDropdown
             label="Mode"
             options={modeOptions}
@@ -168,7 +194,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           />
         </div>
 
-        <div>
+        <div className="lg:col-span-1">
           <MultiSelectDropdown
             label="Status"
             options={statusOptions}
@@ -178,17 +204,17 @@ const FilterBar: React.FC<FilterBarProps> = ({
           />
         </div>
 
-                 <div>
-           <MultiSelectDropdown
-             label="Groups"
-             options={groupOptions}
-             selectedValues={filters.groupSelection || []}
-             onChange={(values) => handleFilterChange('groupSelection', values)}
-             placeholder="Select groups..."
-           />
-         </div>
+        <div className="lg:col-span-1">
+          <MultiSelectDropdown
+            label="Groups"
+            options={groupOptions}
+            selectedValues={filters.groupSelection || []}
+            onChange={(values) => handleFilterChange('groupSelection', values)}
+            placeholder="Select groups..."
+          />
+        </div>
 
-        <div>
+        <div className="lg:col-span-1">
           <MultiSelectDropdown
             label="Regions"
             options={regionOptions}
@@ -198,7 +224,17 @@ const FilterBar: React.FC<FilterBarProps> = ({
           />
         </div>
 
-        <div>
+        <div className="lg:col-span-1">
+          <MultiSelectDropdown
+            label="Equipment"
+            options={equipmentOptions}
+            selectedValues={filters.equipment || []}
+            onChange={(values) => handleFilterChange('equipment', values)}
+            placeholder="Select equipment..."
+          />
+        </div>
+
+        <div className="lg:col-span-1">
           <label className="block text-xs font-medium text-gray-700 mb-1">Customer Rep</label>
           <select
             value={filters.customerSalesRep || ''}
@@ -212,7 +248,7 @@ const FilterBar: React.FC<FilterBarProps> = ({
           </select>
         </div>
 
-        <div>
+        <div className="lg:col-span-1">
           <label className="block text-xs font-medium text-gray-700 mb-1">Carrier Rep</label>
           <select
             value={filters.carrierSalesRep || ''}

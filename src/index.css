@@ -1,3 +1,77 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Custom styles for sticky columns */
+.sticky {
+  position: sticky !important;
+}
+
+.sticky.bg-slate-50 {
+  background-color: #f8fafc !important;
+}
+
+.sticky.bg-white {
+  background-color: white !important;
+}
+
+/* Ensure sticky columns have proper z-index and positioning */
+.sticky[style*="left"] {
+  z-index: 50 !important;
+}
+
+/* Add shadow to sticky columns for better visual separation */
+.sticky.border-r {
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Additional sticky column enhancements */
+.sticky.bg-slate-50 {
+  background-color: #f8fafc !important;
+  backdrop-filter: blur(8px);
+}
+
+.sticky.bg-white {
+  background-color: white !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Ensure proper stacking context for sticky elements */
+.sticky {
+  isolation: isolate;
+}
+
+/* Fix for Safari sticky positioning */
+@supports (-webkit-appearance: none) {
+  .sticky {
+    -webkit-transform: translateZ(0);
+  }
+}
+
+/* Enhanced sticky column styles */
+.sticky.border-r {
+  position: sticky !important;
+  background-clip: padding-box;
+}
+
+/* Ensure sticky columns maintain their background during scroll */
+.sticky.bg-slate-50 {
+  background-color: #f8fafc !important;
+  background-image: linear-gradient(to right, #f8fafc 0%, #f8fafc 100%);
+}
+
+.sticky.bg-white {
+  background-color: white !important;
+  background-image: linear-gradient(to right, white 0%, white 100%);
+}
+
+/* Add a subtle border to sticky columns for better separation */
+.sticky.border-r::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: linear-gradient(to bottom, transparent, #e2e8f0, transparent);
+}

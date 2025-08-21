@@ -27,19 +27,40 @@ export interface Shipment {
   assignedTo: string;
   pieceCount: string;
   status: ShipmentStatus;
+  equipment: string;
+  temperature: {
+    min: number;
+    max: number;
+  };
+  documents?: {
+    bol?: string;
+    pod?: string;
+    invoice?: string;
+  };
 }
 
 export type ShipmentStatus = 
+  | 'Not Specified'
   | 'Quoted'
-  | 'Booked Not Covered'
+  | 'Tendered'
   | 'Booked'
-  | 'Dispatch'
-  | 'In Transit'
-  | 'Delivered'
+  | 'Dispatched'
   | 'Loading'
+  | 'In Transit'
+  | 'Out For Delivery'
+  | 'Refused Delivery'
+  | 'In Disposition'
+  | 'Dispositioned'
+  | 'Missed Delivery'
+  | 'Loading/Unloading'
   | 'Unloading'
-  | 'Unloading / Loading'
-  | 'Delivered OS&D';
+  | 'Delivered'
+  | 'Delivered OS&D'
+  | 'Completed'
+  | 'Hold'
+  | 'Transferred'
+  | 'Cancelled With Charges'
+  | 'Canceled';
 
 export type ShipmentMode = 
   | 'LTL'
@@ -57,7 +78,8 @@ export type AppointmentStatus =
 
 export type Priority = 
   | 'HOT'
-  | 'Standard';
+  | 'Standard'
+  | 'Trace';
 
 export interface AppointmentStatusColors {
   [key: string]: string;
@@ -94,6 +116,7 @@ export interface FilterOptions {
   shipmentStatus?: ShipmentStatus[];
   priority?: Priority[];
   appointmentStatus?: AppointmentStatus[];
+  equipment?: string[];
 }
 
 export interface Customer {

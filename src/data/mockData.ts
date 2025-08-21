@@ -24,10 +24,16 @@ const generateRandomShipments = (count: number): Shipment[] => {
 
   const regions = ['Northeast', 'West Coast', 'Southeast', 'Mountain', 'Midwest', 'Texas', 'Northwest'];
   const modes = ['LTL', 'FTL', 'Intermodal', 'Air', 'Ocean', 'Drayage'];
-  const statuses: ShipmentStatus[] = ['Quoted', 'Booked Not Covered', 'Booked', 'Dispatch', 'In Transit', 'Delivered', 'Loading', 'Unloading', 'Unloading / Loading', 'Delivered OS&D'];
+  const statuses: ShipmentStatus[] = [
+  'Not Specified', 'Quoted', 'Tendered', 'Booked', 'Dispatched', 'Loading', 'In Transit', 
+  'Out For Delivery', 'Refused Delivery', 'In Disposition', 'Dispositioned', 'Missed Delivery',
+  'Loading/Unloading', 'Unloading', 'Delivered', 'Delivered OS&D', 'Completed', 'Hold',
+  'Transferred', 'Cancelled With Charges', 'Canceled'
+];
   const appointmentStatuses: AppointmentStatus[] = ['Not Required', 'Requested', 'Confirmed', 'Pending'];
-  const priorities: Priority[] = ['HOT', 'Standard'];
+  const priorities: Priority[] = ['HOT', 'Standard', 'Trace'];
   const assignedTeams = ['Dispatch Team', 'Sales Team', 'Operations Team', 'Quote Team', 'Delivery Team', 'Customer Service'];
+  const equipmentTypes = ['Van', 'Reefer', 'Flatbed'];
 
   const productDescriptions = [
     'Automotive parts', 'Electronics', 'Import goods', 'Computer equipment', 'Marine equipment',
@@ -102,6 +108,22 @@ const generateRandomShipments = (count: number): Shipment[] => {
     'Delivery Rd', 'Supply Chain Blvd', 'Operations Ave', 'Distribution Center', 'Fulfillment Center'
   ];
 
+  const shipperNames = [
+    'Acme Corp', 'Tech Solutions', 'Global Manufacturing', 'Retail Plus', 'Food Services Inc',
+    'Industrial Supply Co', 'Metro Transport LLC', 'Coastal Shipping Inc', 'Mountain Express Corp',
+    'Desert Logistics Group', 'Urban Freight Systems', 'Rural Transport Co', 'Express Delivery Inc',
+    'Premium Shipping LLC', 'Standard Freight Corp', 'Quick Logistics Inc', 'Reliable Transport Co',
+    'Fast Track Shipping', 'Elite Logistics Group', 'Ocean Freight Co', 'Steel City Transport'
+  ];
+
+  const consigneeNames = [
+    'Delta Industries', 'Omega Solutions', 'Prime Manufacturing', 'Elite Retail Corp', 'Fresh Food Co',
+    'Advanced Supply Inc', 'City Transport LLC', 'Pacific Shipping Corp', 'Peak Express Inc',
+    'Arid Logistics Group', 'Metro Freight Systems', 'Country Transport Co', 'Swift Delivery Inc',
+    'Premium Logistics LLC', 'Standard Transport Corp', 'Rapid Logistics Inc', 'Trusted Transport Co',
+    'Express Track Shipping', 'Superior Logistics Group', 'Atlantic Freight Co', 'Iron City Transport'
+  ];
+
   const shipments: Shipment[] = [];
 
   for (let i = 8; i <= count + 7; i++) {
@@ -109,6 +131,8 @@ const generateRandomShipments = (count: number): Shipment[] => {
     const consigneeCity = cities[Math.floor(Math.random() * cities.length)];
     const shipperStreet = streets[Math.floor(Math.random() * streets.length)];
     const consigneeStreet = streets[Math.floor(Math.random() * streets.length)];
+    const shipperName = shipperNames[Math.floor(Math.random() * shipperNames.length)];
+    const consigneeName = consigneeNames[Math.floor(Math.random() * consigneeNames.length)];
     
     const pickupDate = new Date(2024, 0, Math.floor(Math.random() * 30) + 1);
     const deliveryDate = new Date(pickupDate);
@@ -121,6 +145,13 @@ const generateRandomShipments = (count: number): Shipment[] => {
     const billed = cost + margin;
     const weight = Math.floor(Math.random() * 15000) + 1000;
     const miles = Math.floor(Math.random() * 1000) + 50;
+    const equipment = equipmentTypes[Math.floor(Math.random() * equipmentTypes.length)];
+    const baseTemp = Math.floor(Math.random() * 60) + 20; // Random base temperature between 20-80°F
+    const tempRange = Math.floor(Math.random() * 15) + 5; // Random range between 5-20°F
+    const temperature = {
+      min: baseTemp,
+      max: baseTemp + tempRange
+    };
     
     const lastEdited = new Date(2024, 0, Math.floor(Math.random() * 30) + 1);
     const hours = Math.floor(Math.random() * 24);
@@ -132,8 +163,8 @@ const generateRandomShipments = (count: number): Shipment[] => {
       id: i.toString(),
       loadNumber: 2024000 + i,
       customer: customers[Math.floor(Math.random() * customers.length)],
-      shipperAddress: `${Math.floor(Math.random() * 999) + 1} ${shipperStreet}, ${shipperCity.city}, ${shipperCity.state} ${shipperCity.zip}`,
-      consigneeAddress: `${Math.floor(Math.random() * 999) + 1} ${consigneeStreet}, ${consigneeCity.city}, ${consigneeCity.state} ${consigneeCity.zip}`,
+      shipperAddress: `${shipperName} - ${Math.floor(Math.random() * 999) + 1} ${shipperStreet}, ${shipperCity.city}, ${shipperCity.state} ${shipperCity.zip}`,
+      consigneeAddress: `${consigneeName} - ${Math.floor(Math.random() * 999) + 1} ${consigneeStreet}, ${consigneeCity.city}, ${consigneeCity.state} ${consigneeCity.zip}`,
       appointmentStatus: appointmentStatuses[Math.floor(Math.random() * appointmentStatuses.length)],
       priority: priorities[Math.floor(Math.random() * priorities.length)],
       pickupDate: pickupDate.toISOString().split('T')[0],
@@ -156,7 +187,14 @@ const generateRandomShipments = (count: number): Shipment[] => {
       pieceCount: pieceCounts[Math.floor(Math.random() * pieceCounts.length)],
       status: statuses[Math.floor(Math.random() * statuses.length)],
       maxBuy,
-      targetRate
+      targetRate,
+      equipment,
+      temperature,
+      documents: {
+        bol: Math.random() > 0.3 ? `BOL-2024-${i.toString().padStart(3, '0')}.pdf` : undefined,
+        pod: Math.random() > 0.4 ? `POD-2024-${i.toString().padStart(3, '0')}.pdf` : undefined,
+        invoice: Math.random() > 0.5 ? `INV-2024-${i.toString().padStart(3, '0')}.pdf` : undefined
+      }
     });
   }
 
@@ -168,8 +206,8 @@ export const mockShipments: Shipment[] = [
     id: '1',
     loadNumber: 2024001,
     customer: 'ABC Manufacturing',
-    shipperAddress: '123 Industrial Blvd, Detroit, MI 48201',
-    consigneeAddress: '456 Warehouse Dr, Chicago, IL 60601',
+    shipperAddress: 'Acme Corp - 123 Industrial Blvd, Detroit, MI 48201',
+    consigneeAddress: 'Delta Industries - 456 Warehouse Dr, Chicago, IL 60601',
     appointmentStatus: 'Confirmed',
     priority: 'HOT',
     pickupDate: '2024-01-15',
@@ -192,14 +230,21 @@ export const mockShipments: Shipment[] = [
     carrierSalesRep: 'Mike Johnson',
     assignedTo: 'Dispatch Team',
     pieceCount: '50 pallets',
-    status: 'In Transit'
+    status: 'In Transit',
+    equipment: 'Van',
+    temperature: { min: 68, max: 78 },
+    documents: {
+      bol: 'BOL-2024-001.pdf',
+      pod: 'POD-2024-001.pdf',
+      invoice: 'INV-2024-001.pdf'
+    }
   },
   {
     id: '2',
     loadNumber: 2024002,
     customer: 'XYZ Logistics',
-    shipperAddress: '789 Port Ave, Los Angeles, CA 90210',
-    consigneeAddress: '321 Distribution Center, Phoenix, AZ 85001',
+    shipperAddress: 'Tech Solutions - 789 Port Ave, Los Angeles, CA 90210',
+    consigneeAddress: 'Omega Solutions - 321 Distribution Center, Phoenix, AZ 85001',
     appointmentStatus: 'Pending',
     priority: 'Standard',
     pickupDate: '2024-01-16',
@@ -222,14 +267,21 @@ export const mockShipments: Shipment[] = [
     carrierSalesRep: 'David Brown',
     assignedTo: 'Sales Team',
     pieceCount: '25 boxes',
-    status: 'Booked'
+    status: 'Booked',
+    equipment: 'Reefer',
+    temperature: { min: 38, max: 48 },
+    documents: {
+      bol: 'BOL-2024-002.pdf',
+      pod: undefined,
+      invoice: undefined
+    }
   },
   {
     id: '3',
     loadNumber: 2024003,
     customer: 'Global Imports',
-    shipperAddress: '555 Harbor St, Miami, FL 33101',
-    consigneeAddress: '777 Trade Center, Atlanta, GA 30301',
+    shipperAddress: 'Global Manufacturing - 555 Harbor St, Miami, FL 33101',
+    consigneeAddress: 'Prime Manufacturing - 777 Trade Center, Atlanta, GA 30301',
     appointmentStatus: 'Confirmed',
     priority: 'HOT',
     pickupDate: '2024-01-17',
@@ -252,14 +304,21 @@ export const mockShipments: Shipment[] = [
     carrierSalesRep: 'Tom Wilson',
     assignedTo: 'Operations Team',
     pieceCount: '100 containers',
-    status: 'Loading'
+    status: 'Loading',
+    equipment: 'Flatbed',
+    temperature: { min: 80, max: 95 },
+    documents: {
+      bol: 'BOL-2024-003.pdf',
+      pod: undefined,
+      invoice: undefined
+    }
   },
   {
     id: '4',
     loadNumber: 2024004,
     customer: 'Tech Solutions',
-    shipperAddress: '888 Innovation Dr, Austin, TX 73301',
-    consigneeAddress: '999 Tech Park, Dallas, TX 75201',
+    shipperAddress: 'Tech Solutions - 888 Innovation Dr, Austin, TX 73301',
+    consigneeAddress: 'Elite Retail Corp - 999 Tech Park, Dallas, TX 75201',
     appointmentStatus: 'Requested',
     priority: 'Standard',
     pickupDate: '2024-01-18',
@@ -282,14 +341,21 @@ export const mockShipments: Shipment[] = [
     carrierSalesRep: 'Amy Chen',
     assignedTo: 'Quote Team',
     pieceCount: '15 pallets',
-    status: 'Quoted'
+    status: 'Quoted',
+    equipment: 'Van',
+    temperature: { min: 65, max: 75 },
+    documents: {
+      bol: undefined,
+      pod: undefined,
+      invoice: undefined
+    }
   },
   {
     id: '5',
     loadNumber: 2024005,
     customer: 'Ocean Freight Co',
-    shipperAddress: '444 Dock Rd, Seattle, WA 98101',
-    consigneeAddress: '666 Port Terminal, Portland, OR 97201',
+    shipperAddress: 'Ocean Freight Co - 444 Dock Rd, Seattle, WA 98101',
+    consigneeAddress: 'Fresh Food Co - 666 Port Terminal, Portland, OR 97201',
     appointmentStatus: 'Confirmed',
     priority: 'Standard',
     pickupDate: '2024-01-19',
@@ -312,14 +378,21 @@ export const mockShipments: Shipment[] = [
     carrierSalesRep: 'Chris Lee',
     assignedTo: 'Delivery Team',
     pieceCount: '75 crates',
-    status: 'Delivered'
+    status: 'Delivered',
+    equipment: 'Reefer',
+    temperature: { min: 32, max: 42 },
+    documents: {
+      bol: 'BOL-2024-005.pdf',
+      pod: 'POD-2024-005.pdf',
+      invoice: 'INV-2024-005.pdf'
+    }
   },
   {
     id: '6',
     loadNumber: 2024006,
     customer: 'Industrial Supply',
-    shipperAddress: '777 Factory Blvd, Pittsburgh, PA 15201',
-    consigneeAddress: '888 Warehouse Ave, Cleveland, OH 44101',
+    shipperAddress: 'Industrial Supply Co - 777 Factory Blvd, Pittsburgh, PA 15201',
+    consigneeAddress: 'Advanced Supply Inc - 888 Warehouse Ave, Cleveland, OH 44101',
     appointmentStatus: 'Confirmed',
     priority: 'HOT',
     pickupDate: '2024-01-22',
@@ -342,14 +415,21 @@ export const mockShipments: Shipment[] = [
     carrierSalesRep: 'Jennifer Adams',
     assignedTo: 'Operations Team',
     pieceCount: '120 pallets',
-    status: 'Unloading / Loading'
+    status: 'Loading/Unloading',
+    equipment: 'Flatbed',
+    temperature: { min: 70, max: 85 },
+    documents: {
+      bol: 'BOL-2024-006.pdf',
+      pod: undefined,
+      invoice: undefined
+    }
   },
   {
     id: '7',
     loadNumber: 2024007,
     customer: 'Retail Distribution',
-    shipperAddress: '999 Distribution Dr, Memphis, TN 38101',
-    consigneeAddress: '111 Retail Plaza, Nashville, TN 37201',
+    shipperAddress: 'Retail Plus - 999 Distribution Dr, Memphis, TN 38101',
+    consigneeAddress: 'Elite Retail Corp - 111 Retail Plaza, Nashville, TN 37201',
     appointmentStatus: 'Requested',
     priority: 'Standard',
     pickupDate: '2024-01-23',
@@ -372,7 +452,14 @@ export const mockShipments: Shipment[] = [
     carrierSalesRep: 'Robert Clark',
     assignedTo: 'Dispatch Team',
     pieceCount: '200 boxes',
-    status: 'Unloading / Loading'
+    status: 'Loading/Unloading',
+    equipment: 'Van',
+    temperature: { min: 65, max: 78 },
+    documents: {
+      bol: 'BOL-2024-007.pdf',
+      pod: undefined,
+      invoice: undefined
+    }
   },
   ...generateRandomShipments(200)
 ];
@@ -415,16 +502,27 @@ export const mockGroups: Group[] = [
 ];
 
 export const statusColors: Record<ShipmentStatus, string> = {
+  'Not Specified': 'bg-gray-400 text-white',
   'Quoted': 'bg-yellow-400 text-yellow-900',
-  'Booked Not Covered': 'bg-red-500 text-white',
+  'Tendered': 'bg-yellow-500 text-white',
   'Booked': 'bg-blue-500 text-white',
-  'Dispatch': 'bg-purple-500 text-white',
-  'In Transit': 'bg-green-500 text-white',
-  'Delivered': 'bg-emerald-600 text-white',
+  'Dispatched': 'bg-purple-500 text-white',
   'Loading': 'bg-orange-500 text-white',
+  'In Transit': 'bg-green-500 text-white',
+  'Out For Delivery': 'bg-green-600 text-white',
+  'Refused Delivery': 'bg-red-500 text-white',
+  'In Disposition': 'bg-amber-500 text-amber-900',
+  'Dispositioned': 'bg-amber-600 text-white',
+  'Missed Delivery': 'bg-red-600 text-white',
+  'Loading/Unloading': 'bg-indigo-500 text-white',
   'Unloading': 'bg-amber-500 text-amber-900',
-  'Unloading / Loading': 'bg-indigo-500 text-white',
-  'Delivered OS&D': 'bg-red-600 text-white'
+  'Delivered': 'bg-emerald-600 text-white',
+  'Delivered OS&D': 'bg-red-700 text-white',
+  'Completed': 'bg-emerald-700 text-white',
+  'Hold': 'bg-yellow-600 text-white',
+  'Transferred': 'bg-blue-600 text-white',
+  'Cancelled With Charges': 'bg-red-800 text-white',
+  'Canceled': 'bg-gray-600 text-white'
 };
 
 export const appointmentStatusColors: Record<AppointmentStatus, string> = {
@@ -436,36 +534,40 @@ export const appointmentStatusColors: Record<AppointmentStatus, string> = {
 
 export const priorityColors: Record<Priority, string> = {
   'HOT': 'bg-red-500 text-white',
-  'Standard': 'bg-gray-400 text-white'
+  'Standard': 'bg-gray-400 text-white',
+  'Trace': 'bg-orange-500 text-white'
 };
 
 export const defaultColumns: TableColumn[] = [
   { id: 'select', label: '', key: 'id', visible: true, sortable: false, filterable: false, width: '40px', sticky: true, locked: true },
-  { id: 'statusActions', label: 'Status & Actions', key: 'status', visible: true, sortable: true, filterable: true, width: '140px', sticky: true, locked: true },
+  { id: 'statusActions', label: 'Status & Actions', key: 'status', visible: true, sortable: true, filterable: false, width: '140px', sticky: true, locked: true },
   { id: 'loadNumber', label: 'Load #', key: 'loadNumber', visible: true, sortable: true, filterable: true, width: '80px', sticky: true },
-  { id: 'customer', label: 'Customer', key: 'customer', visible: true, sortable: true, filterable: true, width: '120px' },
-  { id: 'shipperAddress', label: 'Shipper Address', key: 'shipperAddress', visible: true, sortable: true, filterable: true, width: '150px' },
-  { id: 'consigneeAddress', label: 'Consignee Address', key: 'consigneeAddress', visible: true, sortable: true, filterable: true, width: '150px' },
-  { id: 'appointmentStatus', label: 'Appointment Status', key: 'appointmentStatus', visible: true, sortable: true, filterable: true, width: '100px' },
-  { id: 'priority', label: 'Priority', key: 'priority', visible: true, sortable: true, filterable: true, width: '80px' },
-  { id: 'pickupDate', label: 'Pickup Date', key: 'pickupDate', visible: true, sortable: true, filterable: true, width: '90px' },
-  { id: 'estimatedDelivery', label: 'Est. Delivery', key: 'estimatedDelivery', visible: true, sortable: true, filterable: true, width: '90px' },
-  { id: 'carrier', label: 'Carrier', key: 'carrier', visible: true, sortable: true, filterable: true, width: '120px' },
-  { id: 'poRef', label: 'PO Ref #', key: 'poRef', visible: true, sortable: true, filterable: true, width: '80px' },
-  { id: 'cost', label: 'Cost', key: 'cost', visible: true, sortable: true, filterable: true, width: '70px' },
-  { id: 'maxBuy', label: 'Max Buy', key: 'maxBuy', visible: true, sortable: true, filterable: true, width: '80px' },
-  { id: 'targetRate', label: 'Target Rate', key: 'targetRate', visible: true, sortable: true, filterable: true, width: '90px' },
-  { id: 'billed', label: 'Billed', key: 'billed', visible: true, sortable: true, filterable: true, width: '70px' },
-  { id: 'margin', label: 'Margin', key: 'margin', visible: true, sortable: true, filterable: true, width: '70px' },
-  { id: 'weight', label: 'Weight', key: 'weight', visible: true, sortable: true, filterable: true, width: '70px' },
-  { id: 'miles', label: 'Miles', key: 'miles', visible: true, sortable: true, filterable: true, width: '60px' },
-  { id: 'regionGroup', label: 'Region Group', key: 'regionGroup', visible: true, sortable: true, filterable: true, width: '100px' },
-  { id: 'productDescription', label: 'Product Description', key: 'productDescription', visible: true, sortable: true, filterable: true, width: '120px' },
-  { id: 'mode', label: 'Mode', key: 'mode', visible: true, sortable: true, filterable: true, width: '80px' },
-  { id: 'lastTrackingNote', label: 'Last Tracking Note', key: 'lastTrackingNote', visible: true, sortable: true, filterable: true, width: '150px' },
-  { id: 'lastEdited', label: 'Last Edited', key: 'lastEdited', visible: true, sortable: true, filterable: true, width: '120px' },
-  { id: 'customerSalesRep', label: 'Customer Sales Rep', key: 'customerSalesRep', visible: true, sortable: true, filterable: true, width: '120px' },
-  { id: 'carrierSalesRep', label: 'Carrier Sales Rep', key: 'carrierSalesRep', visible: true, sortable: true, filterable: true, width: '120px' },
-  { id: 'assignedTo', label: 'Assigned To', key: 'assignedTo', visible: true, sortable: true, filterable: true, width: '100px' },
-  { id: 'pieceCount', label: 'Piece Count', key: 'pieceCount', visible: true, sortable: true, filterable: true, width: '80px' }
+  { id: 'documents', label: 'Documents', key: 'documents', visible: true, sortable: false, filterable: false, width: '120px', sticky: true, locked: true },
+  { id: 'customer', label: 'Customer', key: 'customer', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'shipperAddress', label: 'Shipper Address', key: 'shipperAddress', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'consigneeAddress', label: 'Consignee Address', key: 'consigneeAddress', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'appointmentStatus', label: 'Appointment Status', key: 'appointmentStatus', visible: true, sortable: true, filterable: true, width: '90px' },
+  { id: 'priority', label: 'Priority', key: 'priority', visible: true, sortable: true, filterable: true, width: '70px' },
+  { id: 'pickupDate', label: 'Pickup Date', key: 'pickupDate', visible: true, sortable: true, filterable: true, width: '80px' },
+  { id: 'estimatedDelivery', label: 'Est. Delivery', key: 'estimatedDelivery', visible: true, sortable: true, filterable: true, width: '80px' },
+  { id: 'carrier', label: 'Carrier', key: 'carrier', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'poRef', label: 'PO Ref #', key: 'poRef', visible: true, sortable: true, filterable: true, width: '70px' },
+  { id: 'cost', label: 'Cost', key: 'cost', visible: true, sortable: true, filterable: true, width: '60px' },
+  { id: 'maxBuy', label: 'Max Buy', key: 'maxBuy', visible: true, sortable: true, filterable: true, width: '70px' },
+  { id: 'targetRate', label: 'Target Rate', key: 'targetRate', visible: true, sortable: true, filterable: true, width: '80px' },
+  { id: 'billed', label: 'Billed', key: 'billed', visible: true, sortable: true, filterable: true, width: '60px' },
+  { id: 'margin', label: 'Margin', key: 'margin', visible: true, sortable: true, filterable: true, width: '60px' },
+  { id: 'weight', label: 'Weight', key: 'weight', visible: true, sortable: true, filterable: true, width: '60px' },
+  { id: 'miles', label: 'Miles', key: 'miles', visible: true, sortable: true, filterable: true, width: '50px' },
+  { id: 'regionGroup', label: 'Region Group', key: 'regionGroup', visible: true, sortable: true, filterable: true, width: '90px' },
+  { id: 'productDescription', label: 'Product Description', key: 'productDescription', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'mode', label: 'Mode', key: 'mode', visible: true, sortable: true, filterable: true, width: '70px' },
+  { id: 'equipment', label: 'Equipment', key: 'equipment', visible: true, sortable: true, filterable: true, width: '70px' },
+  { id: 'temperature', label: 'Temperature', key: 'temperature', visible: true, sortable: true, filterable: true, width: '90px' },
+  { id: 'lastTrackingNote', label: 'Last Tracking Note', key: 'lastTrackingNote', visible: true, sortable: true, filterable: true, width: '120px' },
+  { id: 'lastEdited', label: 'Last Edited', key: 'lastEdited', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'customerSalesRep', label: 'Customer Sales Rep', key: 'customerSalesRep', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'carrierSalesRep', label: 'Carrier Sales Rep', key: 'carrierSalesRep', visible: true, sortable: true, filterable: true, width: '100px' },
+  { id: 'assignedTo', label: 'Assigned To', key: 'assignedTo', visible: true, sortable: true, filterable: true, width: '90px' },
+  { id: 'pieceCount', label: 'Piece Count', key: 'pieceCount', visible: true, sortable: true, filterable: true, width: '70px' }
 ]; 

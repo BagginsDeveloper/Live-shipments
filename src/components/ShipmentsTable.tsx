@@ -1,8 +1,55 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Shipment, ShipmentStatus, TableColumn, AppointmentStatus, Priority } from '../types';
 import { statusColors, appointmentStatusColors, priorityColors } from '../data/mockData';
 import ColumnManagementModal from './ColumnManagementModal';
-import * as XLSX from 'xlsx';
+import TrackingModal from './TrackingModal';
+import DocumentsModal from './DocumentsModal';
+import SendDocsModal from './SendDocsModal';
+
+// Address Display Component
+const AddressDisplay: React.FC<{ address: string }> = ({ address }) => {
+  // Parse address format: "Company Name - Street Address, City, State Zip"
+  const parts = address.split(' - ');
+  const companyName = parts[0] || '';
+  const addressPart = parts[1] || '';
+  
+  // Split address part by commas
+  const addressComponents = addressPart.split(',').map(part => part.trim());
+  
+  let streetAddress = '';
+  let city = '';
+  let stateZip = '';
+  
+  if (addressComponents.length >= 3) {
+    streetAddress = addressComponents[0];
+    city = addressComponents[1];
+    stateZip = addressComponents[2];
+  } else if (addressComponents.length === 2) {
+    streetAddress = addressComponents[0];
+    stateZip = addressComponents[1];
+  } else {
+    streetAddress = addressPart;
+  }
+  
+  return (
+    <div className="text-xs leading-tight">
+      <div className="font-medium text-gray-900 truncate" title={companyName}>
+        {companyName}
+      </div>
+      {streetAddress && (
+        <div className="text-gray-600 truncate" title={streetAddress}>
+          {streetAddress}
+        </div>
+      )}
+      {city && stateZip && (
+        <div className="text-gray-600 truncate" title={`${city}, ${stateZip}`}>
+          {city}, {stateZip}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface ShipmentsTableProps {
   shipments: Shipment[];
@@ -25,13 +72,21 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
   const [bulkAction, setBulkAction] = useState<string>('');
   const [isColumnModalOpen, setIsColumnModalOpen] = useState(false);
   const [openActionDropdown, setOpenActionDropdown] = useState<string | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState<{ x: number; y: number } | null>(null);
   const [columnFilters, setColumnFilters] = useState<Record<string, string>>({});
+  const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+  const [trackingShipmentId, setTrackingShipmentId] = useState<string>('');
+  const [isDocumentsModalOpen, setIsDocumentsModalOpen] = useState(false);
+  const [isSendDocsModalOpen, setIsSendDocsModalOpen] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const actionButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (openActionDropdown) {
         setOpenActionDropdown(null);
+        setDropdownPosition(null);
       }
     };
 
@@ -60,6 +115,7 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
       const aValue = a[sortField];
       const bValue = b[sortField];
       
+      if (aValue === undefined || bValue === undefined) return 0;
       if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
       if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
       return 0;
@@ -86,6 +142,34 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
     console.log(`Action "${action}" clicked for shipment:`, shipmentId);
     // In a real app, you would handle the specific action here
     setOpenActionDropdown(null);
+  };
+
+  const handleTrackingClick = (shipmentId: string) => {
+    console.log(`Tracking clicked for shipment:`, shipmentId);
+    setTrackingShipmentId(shipmentId);
+    setIsTrackingModalOpen(true);
+  };
+
+  const validateBulkActionSelection = (): boolean => {
+    if (selectedShipments.length === 0) {
+      return false;
+    }
+
+    // Get the statuses of all selected shipments
+    const selectedShipmentStatuses = selectedShipments.map(shipmentId => {
+      const shipment = shipments.find(s => s.id === shipmentId);
+      return shipment?.status;
+    }).filter(Boolean); // Remove any undefined values
+
+    // Check if all statuses are the same
+    const uniqueStatuses = Array.from(new Set(selectedShipmentStatuses));
+    
+    if (uniqueStatuses.length > 1) {
+      alert('Bulk actions can only be performed on shipments with the same status. Please select shipments that all have the same status.');
+      return false;
+    }
+
+    return true;
   };
 
   const renderCell = (shipment: Shipment, column: TableColumn) => {
@@ -121,28 +205,38 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
                 {shipment.status}
               </span>
               
-              {/* Actions Dropdown */}
-              <div className="relative">
-                <button
-                  onClick={() => setOpenActionDropdown(isDropdownOpen ? null : shipment.id)}
-                  className="text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded px-1.5 py-0.5 hover:bg-blue-50"
-                >
-                  Actions ▼
-                </button>
+              {/* Actions and Tracking Buttons */}
+              <div className="flex gap-1">
+                <div className="relative">
+                  <button
+                    ref={(el) => {
+                      actionButtonRefs.current[shipment.id] = el;
+                    }}
+                    onClick={() => {
+                      if (isDropdownOpen) {
+                        setOpenActionDropdown(null);
+                        setDropdownPosition(null);
+                      } else {
+                        const button = actionButtonRefs.current[shipment.id];
+                        if (button) {
+                          const rect = button.getBoundingClientRect();
+                          setDropdownPosition({ x: rect.left, y: rect.bottom });
+                          setOpenActionDropdown(shipment.id);
+                        }
+                      }
+                    }}
+                    className="text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded px-1.5 py-0.5 hover:bg-blue-50"
+                  >
+                    Actions ▼
+                  </button>
+                </div>
                 
-                {isDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-1 w-32 bg-white border border-gray-300 rounded-md shadow-lg z-50">
-                    {actions.map((action) => (
-                      <button
-                        key={action}
-                        onClick={() => handleActionClick(shipment.id, action)}
-                        className="block w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 first:rounded-t-md last:rounded-b-md"
-                      >
-                        {action}
-                      </button>
-                    ))}
-                  </div>
-                )}
+                <button
+                  onClick={() => handleTrackingClick(shipment.id)}
+                  className="text-xs text-green-600 hover:text-green-800 border border-green-300 rounded px-1.5 py-0.5 hover:bg-green-50"
+                >
+                  Tracking
+                </button>
               </div>
             </div>
           );
@@ -174,10 +268,10 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
         return <span>{shipment.customer}</span>;
       
       case 'shipperAddress':
-        return <span>{shipment.shipperAddress}</span>;
+        return <AddressDisplay address={shipment.shipperAddress} />;
       
       case 'consigneeAddress':
-        return <span>{shipment.consigneeAddress}</span>;
+        return <AddressDisplay address={shipment.consigneeAddress} />;
       
       case 'pickupDate':
         return <span>{shipment.pickupDate}</span>;
@@ -221,6 +315,12 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
       case 'mode':
         return <span>{shipment.mode}</span>;
       
+      case 'equipment':
+        return <span>{shipment.equipment}</span>;
+      
+      case 'temperature':
+        return <span>{shipment.temperature.min}°F - {shipment.temperature.max}°F</span>;
+      
       case 'lastTrackingNote':
         return <span className="text-sm text-gray-600">{shipment.lastTrackingNote}</span>;
       
@@ -239,6 +339,70 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
       case 'pieceCount':
         return <span>{shipment.pieceCount}</span>;
       
+      case 'documents':
+        const documents = shipment.documents || {};
+        const availableDocs = Object.values(documents).filter(doc => doc !== undefined);
+        
+        return (
+          <div className="flex flex-col gap-1">
+            {/* Document Icons */}
+            <div className="flex items-center gap-1">
+              {documents.bol && (
+                <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center" title="BOL Available">
+                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              )}
+              {documents.pod && (
+                <div className="w-6 h-6 bg-green-100 rounded flex items-center justify-center" title="POD Available">
+                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              )}
+              {documents.invoice && (
+                <div className="w-6 h-6 bg-purple-100 rounded flex items-center justify-center" title="Invoice Available">
+                  <svg className="w-4 h-4 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                </div>
+              )}
+              {availableDocs.length === 0 && (
+                <div className="w-6 h-6 bg-gray-100 rounded flex items-center justify-center" title="No Documents">
+                  <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+              )}
+            </div>
+            
+            {/* View Docs Button */}
+            <button
+              onClick={() => {
+                setSelectedShipment(shipment);
+                setIsDocumentsModalOpen(true);
+              }}
+              className="text-xs text-blue-600 hover:text-blue-800 border border-blue-300 rounded px-1.5 py-0.5 hover:bg-blue-50"
+            >
+              View Docs
+            </button>
+            
+            {/* Send Docs Button */}
+            {availableDocs.length > 0 && (
+              <button
+                onClick={() => {
+                  setSelectedShipment(shipment);
+                  setIsSendDocsModalOpen(true);
+                }}
+                className="text-xs text-green-600 hover:text-green-800 border border-green-300 rounded px-1.5 py-0.5 hover:bg-green-50"
+              >
+                Send Docs
+              </button>
+            )}
+          </div>
+        );
+      
       default:
         return <span>{String(shipment[column.key])}</span>;
     }
@@ -246,26 +410,48 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
 
   const getActionsForStatus = (status: ShipmentStatus): string[] => {
     switch (status) {
+      case 'Not Specified':
+        return ['Book', 'Quote', 'Run Rates', 'Source Capacity', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
       case 'Quoted':
-        return ['Book', 'Edit Quote', 'Send Quote'];
-      case 'Booked Not Covered':
-        return ['Cover', 'Edit', 'Cancel'];
+        return ['Book', 'Quote', 'Run Rates', 'Source Capacity', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Tendered':
+        return ['Run Rates', 'Source Capacity', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
       case 'Booked':
-        return ['Dispatch', 'Edit', 'Cancel'];
-      case 'Dispatch':
-        return ['Track', 'Edit', 'Cancel'];
-      case 'In Transit':
-        return ['Track', 'Update', 'Deliver'];
+        return ['Quote', 'Dispatch', 'Run Rates', 'Source Capacity', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Dispatched':
+        return ['Book', 'Quote', 'Pickup', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
       case 'Loading':
-        return ['Track', 'Update', 'Complete Loading'];
+        return ['Out For Delivery', 'In Disposition', 'Deliver', 'Not Picked Up', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'In Transit':
+        return ['Out For Delivery', 'In Disposition', 'Deliver', 'Not Picked Up', 'Schedule Appointment', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Out For Delivery':
+        return ['In Disposition', 'Deliver', 'In-Transit', 'Not Picked Up', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Refused Delivery':
+        return ['Not Delivered', 'In Disposition', 'Deliver', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'In Disposition':
+        return ['Dispositioned', 'Deliver', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Dispositioned':
+        return ['Deliver', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Missed Delivery':
+        return ['Not Delivered', 'Out For Delivery', 'In Disposition', 'Deliver', 'In-Transit', 'Not Picked Up', 'Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Loading/Unloading':
+        return ['Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
       case 'Unloading':
-        return ['Track', 'Update', 'Complete Unloading'];
-      case 'Unloading / Loading':
-        return ['Track', 'Update', 'Complete Transfer'];
+        return ['Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
       case 'Delivered':
-        return ['View', 'Invoice', 'Archive'];
+        return ['Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
       case 'Delivered OS&D':
-        return ['View', 'Resolve', 'Archive'];
+        return ['Run Rates', 'Source Capacity', 'Milestone Update', 'Create Invoice', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Completed':
+        return ['Source Capacity', 'Milestone Update', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Hold':
+        return ['Not Delivered', 'Source Capacity', 'Milestone Update', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Transferred':
+        return ['Book', 'Source Capacity', 'Milestone Update', 'Duplicate', 'Exact Duplicate', 'Cancel Load', 'Email Notifications'];
+      case 'Cancelled With Charges':
+        return ['Reinstate', 'Source Capacity', 'Milestone Update', 'Duplicate', 'Exact Duplicate', 'Email Notifications'];
+      case 'Canceled':
+        return ['Reinstate', 'Source Capacity', 'Milestone Update', 'Duplicate', 'Exact Duplicate', 'Email Notifications'];
       default:
         return ['View'];
     }
@@ -290,74 +476,7 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
     return `${leftPosition}px`;
   };
 
-  const exportToExcel = () => {
-    // Prepare the data for export
-    const exportData = sortedAndFilteredShipments.map(shipment => {
-      const row: any = {};
-      
-      visibleColumns.forEach(column => {
-        const value = shipment[column.key];
-        
-        // Format the value based on the column type
-        switch (column.key) {
-          case 'status':
-            row[column.label] = value;
-            break;
-          case 'appointmentStatus':
-            row[column.label] = value;
-            break;
-          case 'priority':
-            row[column.label] = value;
-            break;
-          case 'cost':
-          case 'maxBuy':
-          case 'targetRate':
-          case 'billed':
-          case 'margin':
-            row[column.label] = `$${value.toLocaleString()}`;
-            break;
-          case 'weight':
-            row[column.label] = `${value.toLocaleString()} lbs`;
-            break;
-          case 'miles':
-            row[column.label] = `${value.toLocaleString()}`;
-            break;
-          case 'pickupDate':
-          case 'estimatedDelivery':
-          case 'lastEdited':
-            row[column.label] = value;
-            break;
-          default:
-            row[column.label] = value;
-        }
-      });
-      
-      return row;
-    });
 
-    // Create workbook and worksheet
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
-
-    // Auto-size columns
-    const colWidths = visibleColumns.map(col => ({
-      wch: Math.max(
-        col.label.length,
-        ...exportData.map(row => String(row[col.label] || '').length)
-      )
-    }));
-    ws['!cols'] = colWidths;
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Shipments');
-
-    // Generate filename with current date
-    const date = new Date().toISOString().split('T')[0];
-    const filename = `shipments_export_${date}.xlsx`;
-
-    // Save the file
-    XLSX.writeFile(wb, filename);
-  };
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-slate-200 h-full flex flex-col">
@@ -384,126 +503,161 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
 
           {selectedShipments.length > 0 && (
             <div className="flex items-center gap-2">
-              <select
-                value={bulkAction}
-                onChange={(e) => setBulkAction(e.target.value)}
-                className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white"
-              >
-                <option value="">Bulk Actions</option>
-                <option value="delete">Delete Selected</option>
-                <option value="export">Export Selected</option>
-                <option value="update">Update Status</option>
-              </select>
-              <button
-                onClick={() => {
-                  if (bulkAction) {
-                    onBulkAction(bulkAction, selectedShipments);
-                    setBulkAction('');
-                  }
-                }}
-                disabled={!bulkAction}
-                className="bg-indigo-600 text-white px-2 py-1 rounded-md text-xs hover:bg-indigo-700 disabled:bg-slate-300 font-medium shadow-sm"
-              >
-                Apply
-              </button>
+              {(() => {
+                // Get unique statuses of selected shipments
+                const selectedStatuses = Array.from(new Set(selectedShipments.map(shipmentId => {
+                  const shipment = shipments.find(s => s.id === shipmentId);
+                  return shipment?.status;
+                }).filter(Boolean)));
+
+                const hasMultipleStatuses = selectedStatuses.length > 1;
+
+                return (
+                  <>
+                    {hasMultipleStatuses && (
+                      <div className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded border border-amber-200">
+                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z" />
+                        </svg>
+                        <span>Mixed statuses selected</span>
+                      </div>
+                    )}
+                    <select
+                      value={bulkAction}
+                      onChange={(e) => setBulkAction(e.target.value)}
+                      className="border border-slate-300 rounded-md px-2 py-1 text-xs bg-white"
+                      disabled={hasMultipleStatuses}
+                    >
+                      <option value="">Bulk Actions</option>
+                      <option value="delete">Delete Selected</option>
+                      <option value="export">Export Selected</option>
+                      <option value="update">Update Status</option>
+                    </select>
+                    <button
+                      onClick={() => {
+                        if (bulkAction && validateBulkActionSelection()) {
+                          onBulkAction(bulkAction, selectedShipments);
+                          setBulkAction('');
+                        }
+                      }}
+                      disabled={!bulkAction || hasMultipleStatuses}
+                      className="bg-indigo-600 text-white px-2 py-1 rounded-md text-xs hover:bg-indigo-700 disabled:bg-slate-300 font-medium shadow-sm"
+                    >
+                      Apply
+                    </button>
+                  </>
+                );
+              })()}
             </div>
           )}
         </div>
       </div>
 
-      {/* Table Controls */}
-      <div className="p-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-slate-600">
-            {visibleColumns.length} columns visible
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={exportToExcel}
-              className="px-3 py-1 text-xs bg-green-600 text-white rounded-md hover:bg-green-700 font-medium shadow-sm flex items-center gap-1"
-            >
-              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Export to Excel
-            </button>
-            <button
-              onClick={() => setIsColumnModalOpen(true)}
-              className="px-3 py-1 text-xs bg-slate-600 text-white rounded-md hover:bg-slate-700 font-medium shadow-sm"
-            >
-              Manage Columns
-            </button>
-          </div>
+
+
+      <div className="flex-1 overflow-auto relative">
+        <div className="overflow-x-auto w-full">
+          <table className="min-w-full divide-y divide-slate-200" style={{ tableLayout: 'fixed' }}>
+            <thead className="bg-slate-50">
+              <tr>
+                {visibleColumns.map((column, index) => (
+                  <th
+                    key={column.id}
+                    className={`px-3 py-2 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider ${
+                      column.sortable ? 'cursor-pointer hover:bg-slate-100' : ''
+                    } ${(column.sticky || column.locked) ? 'sticky bg-slate-50 z-50 border-r border-slate-200 shadow-sm' : ''}`}
+                    onClick={() => column.sortable && handleSort(column.key)}
+                    style={{ 
+                      width: column.width,
+                      ...((column.sticky || column.locked) && { 
+                        left: getStickyLeft(index)
+                      })
+                    }}
+                  >
+                    {column.label}
+                  </th>
+                ))}
+              </tr>
+              {/* Filter Row */}
+              <tr>
+                {visibleColumns.map((column, index) => (
+                  <th
+                    key={`filter-${column.id}`}
+                    className={`px-3 py-2 ${(column.sticky || column.locked) ? 'sticky bg-slate-50 z-50 border-r border-slate-200 shadow-sm' : ''}`}
+                    style={{ 
+                      width: column.width,
+                      ...((column.sticky || column.locked) && { 
+                        left: getStickyLeft(index),
+                        top: '32px' // Height of the first header row
+                      })
+                    }}
+                  >
+                    {column.filterable && (
+                      <input
+                        type="text"
+                        placeholder={`Filter ${column.label}`}
+                        value={columnFilters[column.key] || ''}
+                        onChange={(e) => handleColumnFilter(column.key, e.target.value)}
+                        className="w-full text-xs border border-slate-300 rounded-md px-2 py-1 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                      />
+                    )}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-slate-200">
+              {sortedAndFilteredShipments.map((shipment) => (
+                <tr key={shipment.id} className="hover:bg-slate-50 transition-colors">
+                  {visibleColumns.map((column, index) => (
+                    <td
+                      key={column.id}
+                      className={`px-3 py-2 text-xs whitespace-nowrap ${(column.sticky || column.locked) ? 'sticky bg-white z-40 border-r border-slate-200 shadow-sm' : ''}`}
+                      style={{ 
+                        width: column.width,
+                        ...((column.sticky || column.locked) && { 
+                          left: getStickyLeft(index)
+                        })
+                      }}
+                    >
+                      {renderCell(shipment, column)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto relative">
-        <table className="min-w-full divide-y divide-slate-200" style={{ tableLayout: 'fixed' }}>
-          <thead className="bg-slate-50 sticky top-0 z-10">
-            <tr>
-              {visibleColumns.map((column, index) => (
-                <th
-                  key={column.id}
-                  className={`px-3 py-2 text-left text-xs font-semibold text-slate-700 uppercase tracking-wider ${
-                    column.sortable ? 'cursor-pointer hover:bg-slate-100' : ''
-                  } ${(column.sticky || column.locked) ? 'sticky bg-slate-50 z-30 border-r border-slate-200 shadow-sm' : ''}`}
-                  onClick={() => column.sortable && handleSort(column.key)}
-                  style={{ 
-                    width: column.width,
-                    ...((column.sticky || column.locked) && { left: getStickyLeft(index) })
-                  }}
-                >
-                  {column.label}
-                </th>
-              ))}
-            </tr>
-            {/* Filter Row */}
-            <tr>
-              {visibleColumns.map((column, index) => (
-                <th
-                  key={`filter-${column.id}`}
-                  className={`px-3 py-2 ${(column.sticky || column.locked) ? 'sticky bg-slate-50 z-30 border-r border-slate-200 shadow-sm' : ''}`}
-                  style={{ 
-                    width: column.width,
-                    ...((column.sticky || column.locked) && { 
-                      left: getStickyLeft(index),
-                      top: '32px' // Height of the first header row
-                    })
-                  }}
-                >
-                  {column.filterable && (
-                    <input
-                      type="text"
-                      placeholder={`Filter ${column.label}`}
-                      value={columnFilters[column.key] || ''}
-                      onChange={(e) => handleColumnFilter(column.key, e.target.value)}
-                      className="w-full text-xs border border-slate-300 rounded-md px-2 py-1 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    />
-                  )}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-slate-200">
-            {sortedAndFilteredShipments.map((shipment) => (
-              <tr key={shipment.id} className="hover:bg-slate-50 transition-colors">
-                {visibleColumns.map((column, index) => (
-                  <td
-                    key={column.id}
-                    className={`px-3 py-2 text-xs whitespace-nowrap ${(column.sticky || column.locked) ? 'sticky bg-white z-20 border-r border-slate-200 shadow-sm' : ''}`}
-                    style={{ 
-                      width: column.width,
-                      ...((column.sticky || column.locked) && { left: getStickyLeft(index) })
-                    }}
-                  >
-                    {renderCell(shipment, column)}
-                  </td>
-                ))}
-              </tr>
+      {/* Portal-based Action Dropdown */}
+      {openActionDropdown && dropdownPosition && (
+        createPortal(
+          <div
+            className="fixed w-32 bg-white border border-gray-300 rounded-md shadow-lg z-[9999]"
+            style={{
+              left: dropdownPosition.x,
+              top: dropdownPosition.y + 4,
+            }}
+          >
+            {getActionsForStatus(
+              shipments.find(s => s.id === openActionDropdown)?.status || 'Quoted'
+            ).map((action) => (
+              <button
+                key={action}
+                onClick={() => {
+                  handleActionClick(openActionDropdown, action);
+                  setOpenActionDropdown(null);
+                  setDropdownPosition(null);
+                }}
+                className="block w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-100 first:rounded-t-md last:rounded-b-md"
+              >
+                {action}
+              </button>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>,
+          document.body
+        )
+      )}
 
       {/* Column Management Modal */}
       <ColumnManagementModal
@@ -511,6 +665,28 @@ const ShipmentsTable: React.FC<ShipmentsTableProps> = ({
         onClose={() => setIsColumnModalOpen(false)}
         columns={columns}
         onColumnsChange={onColumnsChange}
+      />
+
+      {/* Tracking Modal */}
+      <TrackingModal
+        isOpen={isTrackingModalOpen}
+        onClose={() => setIsTrackingModalOpen(false)}
+        shipmentId={trackingShipmentId}
+        shipment={shipments.find(s => s.id === trackingShipmentId)}
+      />
+
+      {/* Documents Modal */}
+      <DocumentsModal
+        isOpen={isDocumentsModalOpen}
+        onClose={() => setIsDocumentsModalOpen(false)}
+        shipment={selectedShipment}
+      />
+
+      {/* Send Docs Modal */}
+      <SendDocsModal
+        isOpen={isSendDocsModalOpen}
+        onClose={() => setIsSendDocsModalOpen(false)}
+        shipment={selectedShipment}
       />
     </div>
   );

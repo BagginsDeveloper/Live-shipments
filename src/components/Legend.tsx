@@ -10,16 +10,27 @@ interface LegendProps {
 
 const Legend: React.FC<LegendProps> = ({ onStatusFilter, onAppointmentStatusFilter, onPriorityFilter }) => {
   const statuses: ShipmentStatus[] = [
+    'Not Specified',
     'Quoted',
-    'Booked Not Covered',
+    'Tendered',
     'Booked',
-    'Dispatch',
-    'In Transit',
-    'Delivered',
+    'Dispatched',
     'Loading',
+    'In Transit',
+    'Out For Delivery',
+    'Refused Delivery',
+    'In Disposition',
+    'Dispositioned',
+    'Missed Delivery',
+    'Loading/Unloading',
     'Unloading',
-    'Unloading / Loading',
-    'Delivered OS&D'
+    'Delivered',
+    'Delivered OS&D',
+    'Completed',
+    'Hold',
+    'Transferred',
+    'Cancelled With Charges',
+    'Canceled'
   ];
 
   const appointmentStatuses: AppointmentStatus[] = [
@@ -31,32 +42,55 @@ const Legend: React.FC<LegendProps> = ({ onStatusFilter, onAppointmentStatusFilt
 
   const priorities: Priority[] = [
     'HOT',
-    'Standard'
+    'Standard',
+    'Trace'
   ];
 
   // Convert text colors to background colors with better contrast
   const getBackgroundColor = (status: ShipmentStatus): string => {
     switch (status) {
+      case 'Not Specified':
+        return 'bg-gray-400';
       case 'Quoted':
         return 'bg-yellow-400';
-      case 'Booked Not Covered':
-        return 'bg-red-500';
+      case 'Tendered':
+        return 'bg-yellow-500';
       case 'Booked':
         return 'bg-blue-500';
-      case 'Dispatch':
+      case 'Dispatched':
         return 'bg-purple-500';
-      case 'In Transit':
-        return 'bg-green-500';
-      case 'Delivered':
-        return 'bg-emerald-600';
       case 'Loading':
         return 'bg-orange-500';
+      case 'In Transit':
+        return 'bg-green-500';
+      case 'Out For Delivery':
+        return 'bg-green-600';
+      case 'Refused Delivery':
+        return 'bg-red-500';
+      case 'In Disposition':
+        return 'bg-amber-500';
+      case 'Dispositioned':
+        return 'bg-amber-600';
+      case 'Missed Delivery':
+        return 'bg-red-600';
+      case 'Loading/Unloading':
+        return 'bg-indigo-500';
       case 'Unloading':
         return 'bg-amber-500';
-      case 'Unloading / Loading':
-        return 'bg-indigo-500';
+      case 'Delivered':
+        return 'bg-emerald-600';
       case 'Delivered OS&D':
-        return 'bg-red-600';
+        return 'bg-red-700';
+      case 'Completed':
+        return 'bg-emerald-700';
+      case 'Hold':
+        return 'bg-yellow-600';
+      case 'Transferred':
+        return 'bg-blue-600';
+      case 'Cancelled With Charges':
+        return 'bg-red-800';
+      case 'Canceled':
+        return 'bg-gray-600';
       default:
         return 'bg-gray-400';
     }

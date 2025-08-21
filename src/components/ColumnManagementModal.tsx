@@ -1,11 +1,19 @@
 import React, { useState } from 'react';
 import { TableColumn } from '../types';
 
+// Available shipment modes
+const SHIPMENT_MODES = ['All', 'LTL', 'FTL', 'Intermodal', 'Air', 'Ocean', 'Drayage'] as const;
+type ShipmentMode = typeof SHIPMENT_MODES[number];
+
 interface ColumnManagementModalProps {
   isOpen: boolean;
   onClose: () => void;
   columns: TableColumn[];
   onColumnsChange: (columns: TableColumn[]) => void;
+}
+
+interface ModeColumnConfig {
+  [mode: string]: TableColumn[];
 }
 
 const ColumnManagementModal: React.FC<ColumnManagementModalProps> = ({
@@ -16,6 +24,16 @@ const ColumnManagementModal: React.FC<ColumnManagementModalProps> = ({
 }) => {
   const [draggedItem, setDraggedItem] = useState<TableColumn | null>(null);
   const [localColumns, setLocalColumns] = useState<TableColumn[]>(columns);
+  const [selectedMode, setSelectedMode] = useState<ShipmentMode>('All');
+  const [modeColumnConfigs, setModeColumnConfigs] = useState<ModeColumnConfig>({
+    'All': [...columns],
+    'LTL': [...columns],
+    'FTL': [...columns],
+    'Intermodal': [...columns],
+    'Air': [...columns],
+    'Ocean': [...columns],
+    'Drayage': [...columns]
+  });
 
   const handleDragStart = (e: React.DragEvent, column: TableColumn) => {
     setDraggedItem(column);
@@ -39,6 +57,12 @@ const ColumnManagementModal: React.FC<ColumnManagementModalProps> = ({
     newColumns.splice(targetIndex, 0, draggedItem);
 
     setLocalColumns(newColumns);
+    
+    // Update the mode configuration
+    if (selectedMode !== 'All') {
+      updateModeConfig(selectedMode, newColumns);
+    }
+    
     setDraggedItem(null);
   };
 
@@ -51,6 +75,11 @@ const ColumnManagementModal: React.FC<ColumnManagementModalProps> = ({
       col.id === columnId ? { ...col, visible: !col.visible } : col
     );
     setLocalColumns(newColumns);
+    
+    // Update the mode configuration
+    if (selectedMode !== 'All') {
+      updateModeConfig(selectedMode, newColumns);
+    }
   };
 
   const toggleColumnSticky = (columnId: string) => {
@@ -58,15 +87,47 @@ const ColumnManagementModal: React.FC<ColumnManagementModalProps> = ({
       col.id === columnId ? { ...col, sticky: !col.sticky } : col
     );
     setLocalColumns(newColumns);
+    
+    // Update the mode configuration
+    if (selectedMode !== 'All') {
+      updateModeConfig(selectedMode, newColumns);
+    }
   };
 
   const handleSave = () => {
+    // Update the current mode configuration
+    if (selectedMode !== 'All') {
+      updateModeConfig(selectedMode, localColumns);
+    }
+    
+    // Save the current view (either 'All' or specific mode)
     onColumnsChange(localColumns);
     onClose();
   };
 
   const handleReset = () => {
     setLocalColumns(columns);
+    setModeColumnConfigs({
+      'All': [...columns],
+      'LTL': [...columns],
+      'FTL': [...columns],
+      'Intermodal': [...columns],
+      'Air': [...columns],
+      'Ocean': [...columns],
+      'Drayage': [...columns]
+    });
+  };
+
+  const handleModeChange = (mode: ShipmentMode) => {
+    setSelectedMode(mode);
+    setLocalColumns(modeColumnConfigs[mode]);
+  };
+
+  const updateModeConfig = (mode: string, newColumns: TableColumn[]) => {
+    setModeColumnConfigs(prev => ({
+      ...prev,
+      [mode]: newColumns
+    }));
   };
 
   if (!isOpen) return null;
@@ -86,8 +147,34 @@ const ColumnManagementModal: React.FC<ColumnManagementModalProps> = ({
           </button>
         </div>
 
-        <div className="mb-4 text-sm text-gray-600">
-          <p>Drag and drop columns to reorder them. Use the checkboxes to show/hide columns.</p>
+        <div className="mb-4">
+          <div className="mb-3">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Shipment Mode Configuration
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {SHIPMENT_MODES.map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => handleModeChange(mode)}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                    selectedMode === mode
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {mode}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="text-sm text-gray-600">
+            <p>Drag and drop columns to reorder them. Use the checkboxes to show/hide columns.</p>
+            <p className="mt-1">
+              <span className="font-medium">Current Mode:</span> {selectedMode} 
+              {selectedMode !== 'All' && ' - Custom configuration for this shipment mode'}
+            </p>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">

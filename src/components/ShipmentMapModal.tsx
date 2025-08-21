@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, CircleMarker } from 'react-leaflet';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { MapContainer, TileLayer, Popup, CircleMarker, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Shipment } from '../types';
@@ -31,6 +31,27 @@ interface Cluster {
   shipments: Shipment[];
 }
 
+interface WeatherData {
+  lat: number;
+  lng: number;
+  temperature: number;
+  humidity: number;
+  windSpeed: number;
+  precipitation: number;
+  visibility: number;
+  conditions: string;
+  impactLevel: 'low' | 'medium' | 'high' | 'severe';
+  impactDescription: string;
+}
+
+interface WeatherImpact {
+  lat: number;
+  lng: number;
+  radius: number;
+  impactLevel: 'low' | 'medium' | 'high' | 'severe';
+  description: string;
+}
+
 const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
   isOpen,
   onClose,
@@ -39,6 +60,14 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
   const [zoom, setZoom] = useState(4);
   const [center, setCenter] = useState<[number, number]>([39.8283, -98.5795]); // Center of US
   const [selectedLocation, setSelectedLocation] = useState<Location | null>(null);
+  const [weatherData, setWeatherData] = useState<WeatherData[]>([]);
+  const [weatherImpacts, setWeatherImpacts] = useState<WeatherImpact[]>([]);
+  const [showWeatherOverlay, setShowWeatherOverlay] = useState(true);
+  const [selectedWeatherLocation, setSelectedWeatherLocation] = useState<WeatherData | null>(null);
+
+  // Weather API configuration (you'll need to get an API key from OpenWeatherMap)
+  const WEATHER_API_KEY = 'YOUR_OPENWEATHERMAP_API_KEY'; // Replace with actual API key
+  const WEATHER_BASE_URL = 'https://api.openweathermap.org/data/2.5/weather';
 
   // Parse addresses to get coordinates (simplified - in real app you'd use a geocoding service)
   const locations = useMemo(() => {
@@ -123,6 +152,134 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
     return Array.from(locationMap.values());
   }, [shipments]);
 
+  // Get impact description
+  const getImpactDescription = useCallback((impactLevel: 'low' | 'medium' | 'high' | 'severe'): string => {
+    switch (impactLevel) {
+      case 'low':
+        return 'Minimal impact on shipments';
+      case 'medium':
+        return 'Moderate delays possible';
+      case 'high':
+        return 'Significant delays expected';
+      case 'severe':
+        return 'Severe disruptions likely';
+      default:
+        return 'Unknown impact level';
+    }
+  }, []);
+
+  // Assess weather impact based on conditions
+  const assessWeatherImpact = useCallback((weatherData: any): 'low' | 'medium' | 'high' | 'severe' => {
+    const { temp, wind_speed, visibility, weather } = weatherData.main || {};
+    const conditions = weather?.[0]?.main?.toLowerCase() || '';
+    
+    let impactScore = 0;
+    
+    // Temperature impact
+    if (temp < 20 || temp > 100) impactScore += 2;
+    else if (temp < 32 || temp > 90) impactScore += 1;
+    
+    // Wind impact
+    if (wind_speed > 25) impactScore += 3;
+    else if (wind_speed > 15) impactScore += 2;
+    else if (wind_speed > 10) impactScore += 1;
+    
+    // Visibility impact
+    if (visibility < 1) impactScore += 3;
+    else if (visibility < 3) impactScore += 2;
+    else if (visibility < 5) impactScore += 1;
+    
+    // Weather condition impact
+    if (['thunderstorm', 'snow', 'sleet'].includes(conditions)) impactScore += 3;
+    else if (['rain', 'drizzle'].includes(conditions)) impactScore += 2;
+    else if (['fog', 'mist'].includes(conditions)) impactScore += 1;
+    
+    if (impactScore >= 6) return 'severe';
+    if (impactScore >= 4) return 'high';
+    if (impactScore >= 2) return 'medium';
+    return 'low';
+  }, []);
+
+  // Generate weather impact circles for heat map
+  const generateWeatherImpacts = useCallback((weather: WeatherData[]) => {
+    const impacts: WeatherImpact[] = weather
+      .filter(w => w.impactLevel !== 'low')
+      .map(w => ({
+        lat: w.lat,
+        lng: w.lng,
+        radius: w.impactLevel === 'severe' ? 200000 : w.impactLevel === 'high' ? 150000 : 100000, // meters
+        impactLevel: w.impactLevel,
+        description: w.impactDescription
+      }));
+    
+    setWeatherImpacts(impacts);
+  }, []);
+
+  // Fetch weather data for locations
+  const fetchWeatherData = useCallback(async () => {
+    if (WEATHER_API_KEY === 'YOUR_OPENWEATHERMAP_API_KEY') {
+      // Use mock weather data for demonstration
+      const mockWeatherData: WeatherData[] = locations.map(location => {
+        const impactLevels: ('low' | 'medium' | 'high' | 'severe')[] = ['low', 'medium', 'high', 'severe'];
+        const impactLevel = impactLevels[Math.floor(Math.random() * impactLevels.length)];
+        
+        return {
+          lat: location.lat,
+          lng: location.lng,
+          temperature: Math.round(20 + Math.random() * 40 - 20), // -20 to 40°C
+          humidity: Math.round(30 + Math.random() * 50), // 30-80%
+          windSpeed: Math.round(5 + Math.random() * 25), // 5-30 mph
+          precipitation: Math.round(Math.random() * 100), // 0-100%
+          visibility: Math.round(5 + Math.random() * 10), // 5-15 miles
+          conditions: ['Clear', 'Cloudy', 'Rain', 'Snow', 'Storm'][Math.floor(Math.random() * 5)],
+          impactLevel,
+          impactDescription: getImpactDescription(impactLevel)
+        };
+      });
+      
+      setWeatherData(mockWeatherData);
+      generateWeatherImpacts(mockWeatherData);
+      return;
+    }
+
+    try {
+      const weatherPromises = locations.map(async (location) => {
+        const response = await fetch(
+          `${WEATHER_BASE_URL}?lat=${location.lat}&lon=${location.lng}&appid=${WEATHER_API_KEY}&units=imperial`
+        );
+        const data = await response.json();
+        
+        const impactLevel = assessWeatherImpact(data);
+        
+        return {
+          lat: location.lat,
+          lng: location.lng,
+          temperature: Math.round(data.main.temp),
+          humidity: data.main.humidity,
+          windSpeed: Math.round(data.wind.speed),
+          precipitation: data.rain ? Math.round(data.rain['1h'] || 0) : 0,
+          visibility: Math.round(data.visibility / 1609.34), // Convert meters to miles
+          conditions: data.weather[0].main,
+          impactLevel,
+          impactDescription: getImpactDescription(impactLevel)
+        };
+      });
+
+      const weatherResults = await Promise.all(weatherPromises);
+      setWeatherData(weatherResults);
+      generateWeatherImpacts(weatherResults);
+    } catch (error) {
+      console.error('Error fetching weather data:', error);
+    }
+  }, [locations, getImpactDescription, assessWeatherImpact, generateWeatherImpacts]);
+
+  // Fetch weather data when modal opens
+  useEffect(() => {
+    if (isOpen && locations.length > 0) {
+      fetchWeatherData();
+    }
+  }, [isOpen, locations, fetchWeatherData]);
+
   // Create clusters based on zoom level
   const clusters = useMemo(() => {
     if (zoom >= 6) {
@@ -159,9 +316,6 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
     }
   }, [locations, zoom]);
 
-  const handleZoomIn = () => setZoom(prev => Math.min(prev + 1, 10));
-  const handleZoomOut = () => setZoom(prev => Math.max(prev - 1, 1));
-
   const handleClusterClick = (cluster: Cluster) => {
     if (zoom < 6) {
       // Zoom in to show individual locations
@@ -177,6 +331,10 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
     }
   };
 
+  const handleWeatherLocationClick = (weather: WeatherData) => {
+    setSelectedWeatherLocation(weather);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -188,6 +346,17 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
             Shipment Locations ({shipments.length} shipments)
           </h2>
           <div className="flex items-center gap-2">
+            {/* Weather Overlay Toggle */}
+            <button
+              onClick={() => setShowWeatherOverlay(!showWeatherOverlay)}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                showWeatherOverlay 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {showWeatherOverlay ? '🌤️ Hide Weather' : '🌤️ Show Weather'}
+            </button>
             <button
               onClick={onClose}
               className="p-2 text-gray-400 hover:text-gray-600"
@@ -211,6 +380,74 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            
+            {/* Weather Impact Heat Map Overlay */}
+            {showWeatherOverlay && weatherImpacts.map((impact, index) => (
+              <Circle
+                key={`impact-${index}`}
+                center={[impact.lat, impact.lng]}
+                radius={impact.radius}
+                pathOptions={{
+                  color: impact.impactLevel === 'severe' ? '#dc2626' : 
+                         impact.impactLevel === 'high' ? '#ea580c' : '#d97706',
+                  fillColor: impact.impactLevel === 'severe' ? '#dc2626' : 
+                            impact.impactLevel === 'high' ? '#ea580c' : '#d97706',
+                  fillOpacity: impact.impactLevel === 'severe' ? 0.3 : 
+                              impact.impactLevel === 'high' ? 0.25 : 0.2,
+                  weight: 2
+                }}
+              >
+                <Popup>
+                  <div className="text-center">
+                    <div className={`font-bold text-lg ${
+                      impact.impactLevel === 'severe' ? 'text-red-700' :
+                      impact.impactLevel === 'high' ? 'text-orange-700' : 'text-yellow-700'
+                    }`}>
+                      {impact.impactLevel.toUpperCase()} Impact
+                    </div>
+                    <div className="text-sm text-gray-600">{impact.description}</div>
+                  </div>
+                </Popup>
+              </Circle>
+            ))}
+            
+            {/* Weather Data Markers */}
+            {showWeatherOverlay && weatherData.map((weather, index) => (
+              <CircleMarker
+                key={`weather-${index}`}
+                center={[weather.lat, weather.lng]}
+                radius={8}
+                fillColor={weather.impactLevel === 'severe' ? '#dc2626' : 
+                           weather.impactLevel === 'high' ? '#ea580c' : 
+                           weather.impactLevel === 'medium' ? '#d97706' : '#10b981'}
+                color="white"
+                weight={2}
+                opacity={0.9}
+                fillOpacity={0.8}
+                eventHandlers={{
+                  click: () => handleWeatherLocationClick(weather)
+                }}
+              >
+                <Popup>
+                  <div className="text-center min-w-32">
+                    <div className="font-bold text-sm mb-2">Weather Conditions</div>
+                    <div className="text-xs space-y-1">
+                      <div>🌡️ {weather.temperature}°F</div>
+                      <div>💨 {weather.windSpeed} mph</div>
+                      <div>💧 {weather.humidity}%</div>
+                      <div>👁️ {weather.visibility} mi</div>
+                      <div className={`font-medium mt-2 ${
+                        weather.impactLevel === 'severe' ? 'text-red-700' :
+                        weather.impactLevel === 'high' ? 'text-orange-700' : 
+                        weather.impactLevel === 'medium' ? 'text-yellow-700' : 'text-green-700'
+                      }`}>
+                        {weather.impactLevel.toUpperCase()} IMPACT
+                      </div>
+                    </div>
+                  </div>
+                </Popup>
+              </CircleMarker>
+            ))}
             
             {/* Clusters/Markers */}
             {clusters.map((cluster, index) => (
@@ -271,6 +508,31 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
             </div>
           </div>
 
+          {/* Weather Legend */}
+          {showWeatherOverlay && (
+            <div className="absolute bottom-4 right-4 bg-white px-4 py-3 rounded-md shadow-md border border-gray-200">
+              <div className="text-sm font-medium text-gray-700 mb-2">Weather Impact Legend</div>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                  <span>Low Impact</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                  <span>Medium Impact</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-orange-500"></div>
+                  <span>High Impact</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                  <span>Severe Impact</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Zoom Level Indicator */}
           <div className="absolute bottom-4 left-4 bg-white px-3 py-2 rounded-md shadow-md border border-gray-200">
             <div className="text-sm text-gray-600">
@@ -326,6 +588,65 @@ const ShipmentMapModal: React.FC<ShipmentMapModalProps> = ({
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Weather Details Modal */}
+        {selectedWeatherLocation && (
+          <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="bg-white rounded-lg shadow-xl w-96 max-h-96 flex flex-col">
+              <div className="flex justify-between items-center p-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Weather Details</h3>
+                <button
+                  onClick={() => setSelectedWeatherLocation(null)}
+                  className="p-2 text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-4">
+                <div className="space-y-4">
+                  <div className="text-center">
+                    <div className={`text-2xl font-bold mb-2 ${
+                      selectedWeatherLocation.impactLevel === 'severe' ? 'text-red-700' :
+                      selectedWeatherLocation.impactLevel === 'high' ? 'text-orange-700' : 
+                      selectedWeatherLocation.impactLevel === 'medium' ? 'text-yellow-700' : 'text-green-700'
+                    }`}>
+                      {selectedWeatherLocation.impactLevel.toUpperCase()} IMPACT
+                    </div>
+                    <div className="text-sm text-gray-600 mb-4">
+                      {selectedWeatherLocation.impactDescription}
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">{selectedWeatherLocation.temperature}°F</div>
+                      <div className="text-xs text-gray-600">Temperature</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">{selectedWeatherLocation.humidity}%</div>
+                      <div className="text-xs text-gray-600">Humidity</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">{selectedWeatherLocation.windSpeed} mph</div>
+                      <div className="text-xs text-gray-600">Wind Speed</div>
+                    </div>
+                    <div className="text-center p-3 bg-gray-50 rounded-lg">
+                      <div className="text-2xl font-bold text-gray-900">{selectedWeatherLocation.visibility} mi</div>
+                      <div className="text-xs text-gray-600">Visibility</div>
+                    </div>
+                  </div>
+                  
+                  <div className="text-center p-3 bg-blue-50 rounded-lg">
+                    <div className="text-sm font-medium text-blue-900">Conditions</div>
+                    <div className="text-lg text-blue-700">{selectedWeatherLocation.conditions}</div>
+                  </div>
                 </div>
               </div>
             </div>
