@@ -488,7 +488,7 @@ function Dashboard() {
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router basename="/Live-shipments">
         <Routes>
           {/* Public tracking route - no authentication required */}
           <Route path="/tracking/:shipmentId" element={<PublicTrackingPage />} />
