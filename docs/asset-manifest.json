@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/Live-shipments/static/css/main.2a0a7413.css",
+    "main.js": "/Live-shipments/static/js/main.cf28316a.js",
+    "static/js/453.4e28fa0f.chunk.js": "/Live-shipments/static/js/453.4e28fa0f.chunk.js",
+    "index.html": "/Live-shipments/index.html",
+    "main.2a0a7413.css.map": "/Live-shipments/static/css/main.2a0a7413.css.map",
+    "main.cf28316a.js.map": "/Live-shipments/static/js/main.cf28316a.js.map",
+    "453.4e28fa0f.chunk.js.map": "/Live-shipments/static/js/453.4e28fa0f.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.2a0a7413.css",
+    "static/js/main.cf28316a.js"
+  ]
+}
