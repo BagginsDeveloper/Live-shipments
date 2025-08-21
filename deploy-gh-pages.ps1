@@ -27,9 +27,14 @@ Write-Host "Cleaning gh-pages branch..." -ForegroundColor Yellow
 git rm -rf .
 git clean -fxd
 
-# Copy all files from root (excluding git and node_modules)
-Write-Host "Copying files..." -ForegroundColor Yellow
-Copy-Item -Path "*" -Destination "." -Recurse -Force -Exclude ".git", "node_modules", "src"
+# Copy built files from build directory
+Write-Host "Copying built files..." -ForegroundColor Yellow
+if (Test-Path "build") {
+    Copy-Item -Path "build\*" -Destination "." -Recurse -Force
+} else {
+    Write-Host "Build directory not found! Please run 'npm run build' first." -ForegroundColor Red
+    exit 1
+}
 
 # Add all files
 Write-Host "Adding files to git..." -ForegroundColor Yellow

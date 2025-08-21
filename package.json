@@ -33,17 +33,15 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build && npm run move-build-to-root",
-    "move-build-to-root": "cp -r build/* . && rm -rf build",
+    "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "deploy": "powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "deploy:azure": "npm run build && powershell -ExecutionPolicy Bypass -File deploy.ps1",
     "predeploy": "npm run build",
-    "deploy:gh-pages": "gh-pages -d .",
+    "deploy:gh-pages": "gh-pages -d build",
     "deploy:manual": "powershell -ExecutionPolicy Bypass -File deploy-gh-pages.ps1",
-    "predeploy:pages": "npm run build",
-    "deploy:pages": "gh-pages -d build"
+    "deploy:pages": "npm run build && gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
