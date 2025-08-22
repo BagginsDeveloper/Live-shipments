@@ -486,9 +486,10 @@ function Dashboard() {
 }
 
 function App() {
-  // Set basename based on environment
-  // Use "/Live-shipments" for production (GitHub Pages), empty string for local development
-  const basename = process.env.NODE_ENV === 'production' ? '/Live-shipments' : '';
+  // Set basename based on the actual hostname
+  // Use "/Live-shipments" only for GitHub Pages, empty string for everything else
+  const isGitHubPages = window.location.hostname === 'bagginsdeveloper.github.io';
+  const basename = isGitHubPages ? '/Live-shipments' : '';
   
   return (
     <AuthProvider>
