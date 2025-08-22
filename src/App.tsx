@@ -488,8 +488,10 @@ function Dashboard() {
 function App() {
   // Set basename based on the actual hostname
   // Use "/Live-shipments" only for GitHub Pages, empty string for everything else
-  const isGitHubPages = window.location.hostname === 'bagginsdeveloper.github.io';
-  const basename = isGitHubPages ? '/Live-shipments' : '';
+  const basename = typeof window !== 'undefined' && window.location.hostname === 'bagginsdeveloper.github.io' ? '/Live-shipments' : '';
+  
+  console.log('App rendering with basename:', basename);
+  console.log('Current hostname:', typeof window !== 'undefined' ? window.location.hostname : 'server-side');
   
   return (
     <AuthProvider>
