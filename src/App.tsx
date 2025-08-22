@@ -486,12 +486,30 @@ function Dashboard() {
 }
 
 function App() {
-  // Set basename based on the actual hostname
+  // Set basename based on the actual hostname and pathname
   // Use "/Live-shipments" only for GitHub Pages, empty string for everything else
-  const basename = typeof window !== 'undefined' && window.location.hostname === 'bagginsdeveloper.github.io' ? '/Live-shipments' : '';
+  const getBasename = () => {
+    if (typeof window === 'undefined') return '';
+    
+    const hostname = window.location.hostname;
+    const pathname = window.location.pathname;
+    
+    console.log('Debug - Hostname:', hostname);
+    console.log('Debug - Pathname:', pathname);
+    console.log('Debug - Full URL:', window.location.href);
+    
+    // Check if we're on GitHub Pages by looking for the /Live-shipments path
+    if (hostname === 'bagginsdeveloper.github.io' || pathname.startsWith('/Live-shipments')) {
+      console.log('Debug - Detected GitHub Pages, using basename: /Live-shipments');
+      return '/Live-shipments';
+    }
+    
+    console.log('Debug - Not GitHub Pages, using basename: (empty)');
+    return '';
+  };
   
+  const basename = getBasename();
   console.log('App rendering with basename:', basename);
-  console.log('Current hostname:', typeof window !== 'undefined' ? window.location.hostname : 'server-side');
   
   return (
     <AuthProvider>
