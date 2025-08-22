@@ -486,9 +486,13 @@ function Dashboard() {
 }
 
 function App() {
+  // Set basename based on environment
+  // Use "/Live-shipments" for production (GitHub Pages), empty string for local development
+  const basename = process.env.NODE_ENV === 'production' ? '/Live-shipments' : '';
+  
   return (
     <AuthProvider>
-      <Router basename="/Live-shipments">
+      <Router basename={basename}>
         <Routes>
           {/* Public tracking route - no authentication required */}
           <Route path="/tracking/:shipmentId" element={<PublicTrackingPage />} />
