@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Shipment } from '../types';
+import emailjs from '@emailjs/browser';
 
 // Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -55,6 +56,11 @@ const TrackingModal: React.FC<TrackingModalProps> = ({
   const [updateFilter, setUpdateFilter] = useState<'all' | 'manual' | 'automated'>('manual');
   const [showPublicLink, setShowPublicLink] = useState(false);
   const [publicLink, setPublicLink] = useState('');
+  const [showEmailForm, setShowEmailForm] = useState(false);
+  const [emailAddresses, setEmailAddresses] = useState<string>('');
+  const [selectedContact, setSelectedContact] = useState<string>('');
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   // Generate public tracking link
   const generatePublicLink = () => {
@@ -70,6 +76,107 @@ const TrackingModal: React.FC<TrackingModalProps> = ({
       // You could add a toast notification here
     } catch (err) {
       console.error('Failed to copy link:', err);
+    }
+  };
+
+  // Predefined contacts for the dropdown
+  const predefinedContacts = [
+    { 
+      id: 'customer', 
+      name: `Customer - ${shipment?.customer || 'N/A'}`, 
+      email: 'customer@example.com' 
+    },
+    { 
+      id: 'customer_sales_rep', 
+      name: `Customer Sales Rep - ${shipment?.customerSalesRep || 'N/A'}`, 
+      email: 'sales@customer.com' 
+    },
+    { 
+      id: 'carrier_sales_rep', 
+      name: `Carrier Sales Rep - ${shipment?.carrierSalesRep || 'N/A'}`, 
+      email: 'sales@carrier.com' 
+    },
+    { 
+      id: 'assigned_to', 
+      name: `Assigned To - ${shipment?.assignedTo || 'N/A'}`, 
+      email: 'assigned@3plsystems.com' 
+    },
+    { 
+      id: 'operations', 
+      name: 'Operations Team', 
+      email: 'ops@3plsystems.com' 
+    },
+    { 
+      id: 'dispatch', 
+      name: 'Dispatch Team', 
+      email: 'dispatch@3plsystems.com' 
+    },
+    { 
+      id: 'accounting', 
+      name: 'Accounting Team', 
+      email: 'accounting@3plsystems.com' 
+    }
+  ];
+
+  // Handle contact selection
+  const handleContactSelect = (contactId: string) => {
+    const contact = predefinedContacts.find(c => c.id === contactId);
+    if (contact) {
+      setSelectedContact(contactId);
+      // Add the contact's email to the email addresses if not already there
+      if (!emailAddresses.includes(contact.email)) {
+        setEmailAddresses(prev => prev ? `${prev}, ${contact.email}` : contact.email);
+      }
+    }
+  };
+
+  // Send tracking email
+  const sendTrackingEmail = async () => {
+    if (!emailAddresses.trim()) {
+      alert('Please enter at least one email address');
+      return;
+    }
+
+    setIsSendingEmail(true);
+    
+    try {
+      // Initialize EmailJS (you'll need to set up your service ID, template ID, and public key)
+      // For now, we'll simulate the email sending
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API call
+      
+      // TODO: Replace with actual EmailJS configuration
+      // const result = await emailjs.send(
+      //   'YOUR_SERVICE_ID',
+      //   'YOUR_TEMPLATE_ID',
+      //   {
+      //     to_email: emailAddresses,
+      //     tracking_link: publicLink,
+      //     load_number: shipment?.loadNumber || shipmentId,
+      //     customer: shipment?.customer || 'N/A',
+      //     carrier: shipment?.carrier || 'N/A',
+      //     shipper_address: shipment?.shipperAddress || 'N/A',
+      //     consignee_address: shipment?.consigneeAddress || 'N/A',
+      //     pickup_date: shipment?.pickupDate || 'N/A',
+      //     estimated_delivery: shipment?.estimatedDelivery || 'N/A',
+      //     status: shipment?.status || 'N/A',
+      //     from_name: '3PL Systems'
+      //   },
+      //   'YOUR_PUBLIC_KEY'
+      // );
+
+      setEmailSent(true);
+      setTimeout(() => setEmailSent(false), 3000);
+      
+      // Clear form
+      setEmailAddresses('');
+      setSelectedContact('');
+      setShowEmailForm(false);
+      
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      alert('Failed to send email. Please try again.');
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -313,6 +420,17 @@ const TrackingModal: React.FC<TrackingModalProps> = ({
               📤 Generate Public Link
             </button>
             <button
+              onClick={() => {
+                if (!publicLink) {
+                  generatePublicLink();
+                }
+                setShowEmailForm(true);
+              }}
+              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors text-sm"
+            >
+              📧 Send Tracking Email
+            </button>
+            <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600 transition-colors"
             >
@@ -323,29 +441,15 @@ const TrackingModal: React.FC<TrackingModalProps> = ({
           </div>
         </div>
 
-        {/* Public Link Modal */}
+        {/* Public Link and Email Section */}
         {showPublicLink && (
           <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="text-sm font-medium text-blue-900 mb-1">Public Tracking Link Generated!</h3>
-                <p className="text-xs text-blue-700 mb-2">
+                <p className="text-xs text-blue-700">
                   Share this link with your customers to let them track their shipment independently.
                 </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={publicLink}
-                    readOnly
-                    className="text-xs bg-white border border-blue-300 rounded px-3 py-2 flex-1"
-                  />
-                  <button
-                    onClick={copyToClipboard}
-                    className="px-3 py-2 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
-                  >
-                    📋 Copy
-                  </button>
-                </div>
               </div>
               <button
                 onClick={() => setShowPublicLink(false)}
@@ -355,6 +459,176 @@ const TrackingModal: React.FC<TrackingModalProps> = ({
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
+            </div>
+            
+            {/* Link Display and Copy */}
+            <div className="flex items-center gap-2 mb-4">
+              <input
+                type="text"
+                value={publicLink}
+                readOnly
+                className="text-xs bg-white border border-blue-300 rounded px-3 py-2 flex-1"
+              />
+              <button
+                onClick={copyToClipboard}
+                className="px-3 py-2 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 transition-colors"
+              >
+                📋 Copy
+              </button>
+            </div>
+
+            {/* Email Section */}
+            <div className="border-t border-blue-200 pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-medium text-blue-900">Send Tracking Link via Email</h4>
+                <button
+                  onClick={() => setShowEmailForm(!showEmailForm)}
+                  className="text-xs text-blue-600 hover:text-blue-800 underline"
+                >
+                  {showEmailForm ? 'Hide Email Form' : 'Show Email Form'}
+                </button>
+              </div>
+              
+              {showEmailForm && (
+                <div className="space-y-3">
+                  {/* Predefined Contacts Dropdown */}
+                  <div>
+                    <label className="block text-xs font-medium text-blue-900 mb-1">
+                      Quick Add Contacts
+                    </label>
+                    <select
+                      value={selectedContact}
+                      onChange={(e) => handleContactSelect(e.target.value)}
+                      className="w-full text-xs border border-blue-300 rounded px-2 py-1 bg-white"
+                    >
+                      <option value="">Select a contact...</option>
+                      {predefinedContacts.map(contact => (
+                        <option key={contact.id} value={contact.id}>
+                          {contact.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Email Addresses Input */}
+                  <div>
+                    <label className="block text-xs font-medium text-blue-900 mb-1">
+                      Email Addresses (separate multiple with commas)
+                    </label>
+                    <textarea
+                      value={emailAddresses}
+                      onChange={(e) => setEmailAddresses(e.target.value)}
+                      placeholder="Enter email addresses..."
+                      className="w-full text-xs border border-blue-300 rounded px-2 py-1 bg-white resize-none"
+                      rows={2}
+                    />
+                  </div>
+
+                  {/* Send Email Button */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={sendTrackingEmail}
+                      disabled={isSendingEmail || !emailAddresses.trim()}
+                      className="px-3 py-2 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                    >
+                      {isSendingEmail ? (
+                        <>
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          📧 Send Email
+                        </>
+                      )}
+                    </button>
+                    
+                    {emailSent && (
+                      <span className="text-xs text-green-600 flex items-center gap-1">
+                        ✅ Email sent successfully!
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Standalone Email Form (when public link is not shown) */}
+        {!showPublicLink && showEmailForm && (
+          <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-medium text-green-900">Send Tracking Link via Email</h4>
+              <button
+                onClick={() => setShowEmailForm(false)}
+                className="text-green-400 hover:text-green-600"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            
+            <div className="space-y-3">
+              {/* Predefined Contacts Dropdown */}
+              <div>
+                <label className="block text-xs font-medium text-green-900 mb-1">
+                  Quick Add Contacts
+                </label>
+                <select
+                  value={selectedContact}
+                  onChange={(e) => handleContactSelect(e.target.value)}
+                  className="w-full text-xs border border-green-300 rounded px-2 py-1 bg-white"
+                >
+                  <option value="">Select a contact...</option>
+                  {predefinedContacts.map(contact => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Email Addresses Input */}
+              <div>
+                <label className="block text-xs font-medium text-green-900 mb-1">
+                  Email Addresses (separate multiple with commas)
+                </label>
+                <textarea
+                  value={emailAddresses}
+                  onChange={(e) => setEmailAddresses(e.target.value)}
+                  placeholder="Enter email addresses..."
+                  className="w-full text-xs border border-green-300 rounded px-2 py-1 bg-white resize-none"
+                  rows={2}
+                />
+              </div>
+
+              {/* Send Email Button */}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={sendTrackingEmail}
+                  disabled={isSendingEmail || !emailAddresses.trim()}
+                  className="px-3 py-2 bg-green-600 text-white rounded text-xs hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                >
+                  {isSendingEmail ? (
+                    <>
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      📧 Send Email
+                    </>
+                  )}
+                </button>
+                
+                {emailSent && (
+                  <span className="text-xs text-green-600 flex items-center gap-1">
+                    ✅ Email sent successfully!
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         )}
